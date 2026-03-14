@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homework & Assignments - Physics Learning Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <i class="fas fa-atom"></i>
+                <span>Physics Learning Portal</span>
+            </div>
+            <ul class="nav-menu" id="nav-menu">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="index.html#classes">Classes</a></li>
+                <li><a href="homework.html" class="active">Homework</a></li>
+                <li><a href="attendance.html">Attendance</a></li>
+                <li><a href="index.html#feedback">Feedback</a></li>
+                <li><a href="admin.html" class="admin-link"><i class="fas fa-lock"></i> Admin</a></li>
+            </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="header-content">
+            <h1>Homework & Assignments</h1>
+            <p>View and submit your physics assignments</p>
+        </div>
+    </section>
+
+    <!-- Class Filter -->
+    <section class="filter-section">
+        <div class="container">
+            <div class="filter-controls">
+                <select id="classFilter" class="filter-select">
+                    <option value="">All Classes</option>
+                    <option value="11">Class 11</option>
+                    <option value="12">Class 12</option>
+                    <option value="BSc">BSc</option>
+                </select>
+                <select id="semesterFilter" class="filter-select">
+                    <option value="">All Semesters</option>
+                </select>
+                <select id="statusFilter" class="filter-select">
+                    <option value="all">All Assignments</option>
+                    <option value="pending">Pending</option>
+                    <option value="submitted">Submitted</option>
+                    <option value="graded">Graded</option>
+                </select>
+                <button class="btn btn-primary" id="applyFilters">
+                    <i class="fas fa-filter"></i> Apply Filters
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Assignments Grid -->
+    <section class="assignments-section">
+        <div class="container">
+            <div class="assignments-grid" id="assignmentsGrid">
+                <!-- Assignments will be loaded here -->
+                <div class="loading-spinner">
+                    <i class="fas fa-circle-notch fa-spin"></i>
+                    <p>Loading assignments...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Assignment Submission Modal -->
+    <div id="submissionModal" class="modal">
+        <div class="modal-content large-modal">
+            <span class="close-modal">&times;</span>
+            <h2>Submit Assignment</h2>
+            <div id="assignmentDetails" class="assignment-details"></div>
+            
+            <form id="submissionForm" class="submission-form">
+                <input type="hidden" id="assignmentId">
+                
+                <div class="form-group">
+                    <label for="studentName">Your Full Name *</label>
+                    <input type="text" id="studentName" required placeholder="Enter your full name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="studentClass">Class *</label>
+                    <select id="studentClass" required>
+                        <option value="">Select Class</option>
+                        <option value="11">Class 11</option>
+                        <option value="12">Class 12</option>
+                        <option value="BSc">BSc</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="studentSemester">Semester *</label>
+                    <select id="studentSemester" required>
+                        <option value="">Select Semester</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="driveLink">Google Drive Link *</label>
+                    <input type="url" id="driveLink" required 
+                           placeholder="https://drive.google.com/file/d/...">
+                    <small class="form-text">
+                        <i class="fas fa-info-circle"></i>
+                        Make sure your file is shared with "Anyone with the link can view"
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="comments">Additional Comments (Optional)</label>
+                    <textarea id="comments" rows="3" placeholder="Any notes for the teacher..."></textarea>
+                </div>
+                
+                <div class="drive-instructions">
+                    <h4><i class="fab fa-google-drive"></i> How to submit:</h4>
+                    <ol>
+                        <li>Upload your assignment to Google Drive</li>
+                        <li>Right-click the file and click "Share"</li>
+                        <li>Change access to "Anyone with the link"</li>
+                        <li>Copy the link and paste it above</li>
+                    </ol>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <i class="fas fa-upload"></i> Submit Assignment
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+            
+            <div id="submissionSuccess" class="success-message" style="display: none;">
+                <i class="fas fa-check-circle"></i>
+                <h3>Assignment Submitted Successfully!</h3>
+                <p>Your assignment has been received. The teacher will review it soon.</p>
+                <button class="btn btn-primary" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <!-- Same footer as index.html -->
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/homework.js"></script>
+</body>
+</html>
