@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semester Students - Physics Learning Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <i class="fas fa-atom"></i>
+                <span>Physics Learning Portal</span>
+            </div>
+            <ul class="nav-menu" id="nav-menu">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="index.html#classes" class="active">Classes</a></li>
+                <li><a href="homework.html">Homework</a></li>
+                <li><a href="attendance.html">Attendance</a></li>
+                <li><a href="index.html#feedback">Feedback</a></li>
+                <li><a href="admin.html" class="admin-link"><i class="fas fa-lock"></i> Admin</a></li>
+            </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="header-content">
+            <h1 id="className">Class <span id="classValue"></span> - Semester <span id="semesterValue"></span></h1>
+            <p>View and manage students in this semester</p>
+        </div>
+    </section>
+
+    <!-- Search and Filter -->
+    <section class="search-section">
+        <div class="container">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchStudent" placeholder="Search students by name...">
+            </div>
+            <div class="student-stats" id="studentStats">
+                <span><i class="fas fa-users"></i> Total Students: <span id="totalStudents">0</span></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Students Grid -->
+    <section class="students-section">
+        <div class="container">
+            <div class="students-grid" id="studentsGrid">
+                <!-- Students will be loaded here dynamically -->
+                <div class="loading-spinner">
+                    <i class="fas fa-circle-notch fa-spin"></i>
+                    <p>Loading students...</p>
+                </div>
+            </div>
+            
+            <!-- No Students Message -->
+            <div class="no-students" id="noStudents" style="display: none;">
+                <i class="fas fa-user-slash"></i>
+                <h3>No Students Found</h3>
+                <p>There are no students enrolled in this semester yet.</p>
+                <a href="admin.html" class="btn btn-primary">Add Students</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="quick-actions">
+        <div class="container">
+            <h2>Quick Actions</h2>
+            <div class="actions-grid">
+                <a href="#" class="action-card" id="takeAttendance">
+                    <i class="fas fa-check-circle"></i>
+                    <h3>Take Attendance</h3>
+                    <p>Mark attendance for today</p>
+                </a>
+                <a href="homework.html" class="action-card">
+                    <i class="fas fa-book"></i>
+                    <h3>View Assignments</h3>
+                    <p>See all homework for this semester</p>
+                </a>
+                <a href="#" class="action-card" id="downloadList">
+                    <i class="fas fa-download"></i>
+                    <h3>Download List</h3>
+                    <p>Get student list as CSV</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Student Dashboard Modal -->
+    <div id="studentModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div class="student-dashboard" id="studentDashboard">
+                <!-- Student dashboard content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>Physics Learning Portal</h4>
+                <p>Making physics accessible to everyone</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="index.html#classes">Classes</a></li>
+                    <li><a href="homework.html">Homework</a></li>
+                    <li><a href="attendance.html">Attendance</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Contact</h4>
+                <p><i class="fas fa-envelope"></i> teacher@physicsportal.com</p>
+                <p><i class="fas fa-phone"></i> +91 9876543210</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 Physics Learning Portal. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/semester.js"></script>
+</body>
+</html>
