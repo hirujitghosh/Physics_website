@@ -1,641 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>Hirujit Ghosh · Physics | APC Roy Govt College</title>
-  <!-- Font Awesome 6 -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-    }
-
-    body {
-      background: linear-gradient(145deg, #0c1b2f 0%, #13273f 100%);
-      color: #f0f6ff;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      line-height: 1.5;
-    }
-
-    /* ---------- MOBILE FIRST, then enhance ---------- */
-    /* ===== HEADER with background image ===== */
-    header {
-      position: relative;
-      isolation: isolate;
-      padding: 0.8rem 1rem;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      background-color: #061d31; /* deep fallback */
-      border-bottom: 3px solid #ffb347; /* warm orange accent */
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
-      min-height: 120px;
-    }
-
-    /* background image with stronger presence */
-    header::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: url('image.jpg');
-      background-size: cover;
-      background-position: center 25%;
-      opacity: 0.4;   /* more visible, keeps text readable */
-      z-index: -1;
-    }
-
-    /* left: logo + name */
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      background: rgba(0, 20, 40, 0.5); /* semi-transparent for contrast */
-      backdrop-filter: blur(4px);
-      padding: 0.4rem 1rem 0.4rem 0.8rem;
-      border-radius: 60px;
-      border: 1px solid #ffb85b;
-    }
-
-    .logo-atom {
-      background: #c9611e; /* warm orange */
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.8rem;
-      color: #fff2d7;
-      border: 2px solid #ffe09c;
-      box-shadow: 0 0 18px #f39c4b;
-    }
-
-    .user-badge {
-      background: #1e3f62e0;
-      backdrop-filter: blur(6px);
-      padding: 0.3rem 1rem;
-      border-radius: 40px;
-      border: 1px solid #fdb462;
-      font-size: 0.95rem;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    /* center college name – flexible */
-    .header-center {
-      flex: 2 1 auto;
-      text-align: center;
-      margin: 0 0.3rem;
-      background: rgba(0, 15, 30, 0.5);
-      backdrop-filter: blur(4px);
-      padding: 0.4rem 0.8rem;
-      border-radius: 50px;
-      border: 1px solid #6fa3d9;
-    }
-
-    .header-center h1 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      text-shadow: 2px 2px 5px #000000b3;
-      letter-spacing: 0.3px;
-      color: #ffecce;
-      line-height: 1.3;
-    }
-    .header-center h1 span { display: inline-block; }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      background: rgba(0, 20, 40, 0.5);
-      backdrop-filter: blur(4px);
-      border-radius: 40px;
-      border: 1px solid #fdb462;
-      padding: 0.3rem 0.8rem;
-    }
-
-    /* main container */
-    main {
-      flex: 1;
-      padding: 1.5rem 1rem;
-      max-width: 1400px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    /* mobile-first grid (1 column) */
-    .grid-main {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
-      align-items: start;
-    }
-
-    /* cards – more vibrant and glassy */
-    .card {
-      background: rgba(16, 44, 74, 0.9);
-      backdrop-filter: blur(12px);
-      border-radius: 2rem;
-      padding: 1.5rem 1.2rem;
-      border: 1px solid #68a2e0;
-      box-shadow: 0 20px 30px -8px #030c1a, 0 0 0 1px rgba(255, 200, 120, 0.2) inset;
-    }
-
-    .profile-row {
-      display: flex;
-      gap: 1.5rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .prof-pic {
-      width: 110px;
-      height: 110px;
-      border-radius: 28px;
-      background: #c97b3a;
-      border: 4px solid #ffcd94;
-      object-fit: cover;
-      box-shadow: 0 10px 25px #00000080, 0 0 20px #ffae42;
-    }
-
-    .prof-details h2 {
-      font-size: 1.8rem;
-      font-weight: 600;
-      background: linear-gradient(135deg, #ffe5b4, #ffffff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 0.25rem;
-    }
-
-    .prof-details p {
-      color: #d3edff;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin: 0.3rem 0;
-      font-size: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .interest-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-
-    .chip {
-      background: #245d96;
-      border: 1px solid #fcc883;
-      border-radius: 30px;
-      padding: 0.3rem 1.2rem;
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: #fff3cf;
-    }
-
-    /* 8-semester grid: 2 columns on mobile, 4 on tablet+ */
-    .semester-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.8rem;
-      margin: 1.8rem 0 1rem;
-    }
-
-    .sem-item {
-      background: #1e4670;
-      border-radius: 1.8rem;
-      padding: 1rem 0.2rem;
-      text-align: center;
-      border: 2px solid #ffae42;
-      transition: 0.15s;
-      cursor: pointer;
-      text-decoration: none;
-      color: #fffbe6;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      font-weight: 600;
-      box-shadow: 0 8px 0 #0e2a41;
-    }
-
-    .sem-item:hover {
-      background: #2f66a3;
-      border-color: #ffd78c;
-      transform: translateY(-3px);
-      box-shadow: 0 10px 0 #0e2a41;
-    }
-
-    .sem-item i {
-      font-size: 2rem;
-      color: #ffd58c;
-    }
-
-    .sem-item span {
-      font-size: 1.1rem;
-    }
-
-    .small-note {
-      color: #ffcf9e;
-      font-size: 0.8rem;
-      margin-top: 0.5rem;
-      display: flex;
-      gap: 5px;
-      align-items: center;
-    }
-
-    /* other students button */
-    .other-btn {
-      background: linear-gradient(145deg, #593c9e, #7e52c9);
-      border: 2px solid #f8c56c;
-      color: white;
-      padding: 1rem;
-      border-radius: 3rem;
-      width: 100%;
-      font-weight: 700;
-      font-size: 1.2rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      cursor: pointer;
-      margin: 1rem 0 0.2rem;
-      transition: 0.2s;
-      box-shadow: 0 8px 0 #382b5a;
-    }
-
-    .other-btn:hover {
-      background: linear-gradient(145deg, #6d4ac7, #9b6ef0);
-      border-color: #ffde9e;
-      transform: translateY(-3px);
-      box-shadow: 0 10px 0 #382b5a;
-    }
-
-    .guest-feedback {
-      font-size: 0.85rem;
-      color: #ffdbb5;
-      margin: 0.5rem 0;
-      font-weight: 500;
-    }
-
-    /* announcement box vivid */
-    .announce-box {
-      background: #173b5c;
-      border-left: 8px solid #fca959;
-      border-radius: 2rem;
-      padding: 1.3rem 1.5rem;
-      margin-top: 1.8rem;
-      box-shadow: 0 5px 0 #0e3147;
-    }
-
-    .announce-header {
-      display: flex;
-      align-items: center;
-      gap: 0.7rem;
-      flex-wrap: wrap;
-    }
-
-    .announce-header h3 {
-      color: #ffd19b;
-      font-size: 1.3rem;
-    }
-
-    .badge-ann {
-      background: #f57c31;
-      color: #011627;
-      border-radius: 30px;
-      padding: 0.2rem 1rem;
-      font-weight: bold;
-    }
-
-    #announceList {
-      margin-top: 1rem;
-      list-style: none;
-    }
-
-    #announceList li {
-      margin-bottom: 0.9rem;
-      padding-left: 1.5rem;
-      position: relative;
-      border-bottom: 1px dashed #5487b5;
-      padding-bottom: 0.6rem;
-      font-size: 0.95rem;
-    }
-
-    #announceList li::before {
-      content: "⚛️";
-      position: absolute;
-      left: -2px;
-      top: -2px;
-      font-size: 1rem;
-    }
-
-    .update-time {
-      font-size: 0.7rem;
-      color: #bedbff;
-      margin-top: 0.8rem;
-      font-style: italic;
-    }
-
-    /* right stack cards more colorful */
-    .right-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 1.2rem;
-    }
-
-    .res-card {
-      background: #16466b;
-      border-radius: 2rem;
-      padding: 1.5rem;
-      border: 2px solid #faa75e;
-      box-shadow: 0 8px 0 #0b314b;
-    }
-
-    .res-card h3 {
-      display: flex;
-      gap: 0.7rem;
-      font-size: 1.4rem;
-      color: #ffdcaa;
-      margin-bottom: 0.6rem;
-    }
-
-    .res-card p {
-      color: #e8f0ff;
-      font-size: 0.95rem;
-      margin-bottom: 1.2rem;
-    }
-
-    .mini-pill {
-      background: #24537e;
-      border: 1px solid #fabf77;
-      border-radius: 40px;
-      padding: 0.3rem 1rem;
-      font-size: 0.75rem;
-      display: inline-block;
-      margin-right: 0.4rem;
-      color: #fff1d2;
-    }
-
-    .action-btn {
-      background: #2d6396;
-      border: none;
-      color: white;
-      padding: 0.8rem 1.2rem;
-      border-radius: 3rem;
-      width: 100%;
-      font-size: 1.1rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.7rem;
-      cursor: pointer;
-      border: 2px solid #ffbb63;
-      transition: 0.15s;
-      box-shadow: 0 5px 0 #173a58;
-    }
-
-    .action-btn:hover {
-      background: #3679b6;
-      border-color: #ffd89c;
-      transform: translateY(-2px);
-      box-shadow: 0 7px 0 #173a58;
-    }
-
-    footer {
-      background: #0b2338;
-      padding: 1rem;
-      text-align: center;
-      color: #bedcff;
-      border-top: 3px solid #ff974f;
-      font-size: 0.85rem;
-    }
-    footer a {
-      color: #ffc58b;
-      font-weight: 600;
-    }
-
-    /* tablet & desktop adjustments */
-    @media (min-width: 600px) {
-      .semester-grid {
-        grid-template-columns: repeat(4, 1fr);
-      }
-      .header-center h1 {
-        font-size: 1.3rem;
-      }
-      .prof-pic {
-        width: 140px;
-        height: 140px;
-      }
-    }
-
-    @media (min-width: 820px) {
-      .grid-main {
-        grid-template-columns: 2.2fr 1.2fr;
-      }
-      .profile-row {
-        flex-wrap: nowrap;
-      }
-      .header-left, .header-right {
-        background: rgba(0,20,40,0.35);
-        backdrop-filter: blur(4px);
-      }
-    }
-
-    /* extra small devices */
-    @media (max-width: 380px) {
-      .prof-details h2 { font-size: 1.5rem; }
-      .header-center h1 { font-size: 1rem; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Learning Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-
-<!-- HEADER with background image (image.jpg) – now more visible & colorful -->
-<header>
-  <div class="header-left">
-    <div class="logo-atom"><i class="fas fa-atom"></i></div>
-    <span class="user-badge"><i class="fa-regular fa-user"></i> <span id="displayName">Hirujit</span></span>
-  </div>
-  <div class="header-center">
-    <h1>Hirujit Ghosh · APC Roy Govt College</h1>
-  </div>
-  <div class="header-right">
-    <span class="user-badge"><i class="fa-regular fa-clock"></i> <span id="lastLogin">today</span></span>
-  </div>
-</header>
-
-<main>
-  <div class="grid-main">
-    <!-- LEFT CARD (prof + 8 semesters + announcements) -->
-    <div class="card">
-      <div class="profile-row">
-        <!-- prof image profile.jpg (fallback emoji) -->
-        <img src="profile.jpg" alt="Hirujit Ghosh" class="prof-pic" id="profImage" onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22200%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%233d6e9a%22%2F%3E%3Ctext%20x%3D%2222%22%20y%3D%2270%22%20font-size%3D%2250%22%20fill%3D%22%23ffd9a3%22%3E👨‍🏫%3C%2Ftext%3E%3C%2Fsvg%3E';">
-        <div class="prof-details">
-          <h2>Hirujit Ghosh</h2>
-          <p><i class="fa-solid fa-building-columns" style="color:#fcb570;"></i> Assistant Professor, Physics</p>
-          <!-- removed any extra paper name line -->
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <i class="fas fa-atom"></i>
+                <span>Physics Learning Portal</span>
+            </div>
+            <ul class="nav-menu" id="nav-menu">
+                <li><a href="index.html" class="active">Home</a></li>
+                <li><a href="#classes">Classes</a></li>
+                <li><a href="homework.html">Homework</a></li>
+                <li><a href="attendance.html">Attendance</a></li>
+                <li><a href="#feedback">Feedback</a></li>
+                <li><a href="admin.html" class="admin-link"><i class="fas fa-lock"></i> Admin</a></li>
+            </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
         </div>
-      </div>
+    </nav>
 
-      <!-- B.Sc 8-semester grid with links -->
-      <h3 style="margin: 1.5rem 0 0.5rem; color:#ffd89c;"><i class="fa-regular fa-calendar"></i> B.Sc Honours semesters</h3>
-      <div class="semester-grid" id="semGrid">
-        <a href="sem1.html" class="sem-item" data-sem="1"><i class="fa-solid fa-1"></i><span>Sem I</span></a>
-        <a href="sem2.html" class="sem-item" data-sem="2"><i class="fa-solid fa-2"></i><span>Sem II</span></a>
-        <a href="sem3.html" class="sem-item" data-sem="3"><i class="fa-solid fa-3"></i><span>Sem III</span></a>
-        <a href="sem4.html" class="sem-item" data-sem="4"><i class="fa-solid fa-4"></i><span>Sem IV</span></a>
-        <a href="sem5.html" class="sem-item" data-sem="5"><i class="fa-solid fa-5"></i><span>Sem V</span></a>
-        <a href="sem6.html" class="sem-item" data-sem="6"><i class="fa-solid fa-6"></i><span>Sem VI</span></a>
-        <a href="sem7.html" class="sem-item" data-sem="7"><i class="fa-solid fa-7"></i><span>Sem VII</span></a>
-        <a href="sem8.html" class="sem-item" data-sem="8"><i class="fa-solid fa-8"></i><span>Sem VIII</span></a>
-      </div>
-      <div class="small-note"><i class="fa-regular fa-hand-point-right" style="color:#ffe084;"></i> tap any semester to open its page</div>
-
-      <!-- OTHER STUDENTS (password protected) with colorful style -->
-      <button class="other-btn" id="otherStudentBtn"><i class="fa-solid fa-user-group"></i> other students (guest)</button>
-      <div class="guest-feedback" id="guestMessage"></div>
-
-      <!-- announcements with extra color -->
-      <div class="announce-box">
-        <div class="announce-header">
-          <i class="fa-solid fa-bullhorn" style="color: #ffbc6e; font-size: 1.8rem;"></i>
-          <h3>announcements</h3>
-          <span class="badge-ann" id="annCount">3</span>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Master Physics with Us</h1>
+            <p>Comprehensive learning resources for Class 11, 12, and BSc students</p>
+            <div class="hero-buttons">
+                <a href="#classes" class="btn btn-primary">Browse Classes</a>
+                <a href="#how-it-works" class="btn btn-secondary">How It Works</a>
+            </div>
         </div>
-        <ul id="announceList">
-          <li><strong>⚡ assignment:</strong> quantum mechanics due 28 Mar</li>
-          <li><strong>🔭 lab:</strong> computational physics data updated</li>
-          <li><strong>📄 PYQ:</strong> 2023 major papers uploaded</li>
-        </ul>
-        <div class="update-time" id="annTime">updated just now</div>
-      </div>
-    </div>
+    </section>
 
-    <!-- RIGHT STACK (vibrant resource cards) -->
-    <div class="right-stack">
-      <div class="res-card">
-        <h3><i class="fa-solid fa-pen-to-square" style="color:#fed289;"></i> assignments</h3>
-        <p>upload, deadlines, problem sheets</p>
-        <button class="action-btn" onclick="window.location.href='assignments.html'"><i class="fa-regular fa-file-pdf"></i> submit / view</button>
-        <div style="margin-top: 12px;"><span class="mini-pill">due: 2 this week</span><span class="mini-pill">LaTeX friendly</span></div>
-      </div>
+    <!-- Class Selection Section -->
+    <section id="classes" class="classes-section">
+        <h2>Choose Your Class</h2>
+        <div class="class-grid">
+            <!-- Class 11 -->
+            <div class="class-card">
+                <div class="class-header">
+                    <i class="fas fa-flask"></i>
+                    <h3>Class 11</h3>
+                </div>
+                <div class="semester-list">
+                    <a href="semester.html?class=11&sem=1" class="semester-btn">Semester 1</a>
+                    <a href="semester.html?class=11&sem=2" class="semester-btn">Semester 2</a>
+                </div>
+            </div>
 
-      <div class="res-card">
-        <h3><i class="fa-solid fa-circle-play" style="color:#fdbd7c;"></i> recorded lectures</h3>
-        <p>videos & handouts</p>
-        <button class="action-btn" onclick="window.location.href='lectures.html'"><i class="fa-solid fa-play"></i> recordings</button>
-      </div>
+            <!-- Class 12 -->
+            <div class="class-card">
+                <div class="class-header">
+                    <i class="fas fa-microscope"></i>
+                    <h3>Class 12</h3>
+                </div>
+                <div class="semester-list">
+                    <a href="semester.html?class=12&sem=1" class="semester-btn">Semester 1</a>
+                    <a href="semester.html?class=12&sem=2" class="semester-btn">Semester 2</a>
+                </div>
+            </div>
 
-      <div class="res-card">
-        <h3><i class="fa-solid fa-file-lines" style="color:#fcc27d;"></i> PYQ & practice</h3>
-        <p>previous papers, formula sheets</p>
-        <button class="action-btn" onclick="window.location.href='pyq.html'"><i class="fa-regular fa-folder-open"></i> question bank</button>
-      </div>
+            <!-- BSc -->
+            <div class="class-card large">
+                <div class="class-header">
+                    <i class="fas fa-university"></i>
+                    <h3>BSc Physics</h3>
+                </div>
+                <div class="semester-list grid-4">
+                    <a href="semester.html?class=BSc&sem=1" class="semester-btn">Sem 1</a>
+                    <a href="semester.html?class=BSc&sem=2" class="semester-btn">Sem 2</a>
+                    <a href="semester.html?class=BSc&sem=3" class="semester-btn">Sem 3</a>
+                    <a href="semester.html?class=BSc&sem=4" class="semester-btn">Sem 4</a>
+                    <a href="semester.html?class=BSc&sem=5" class="semester-btn">Sem 5</a>
+                    <a href="semester.html?class=BSc&sem=6" class="semester-btn">Sem 6</a>
+                    <a href="semester.html?class=BSc&sem=7" class="semester-btn">Sem 7</a>
+                    <a href="semester.html?class=BSc&sem=8" class="semester-btn">Sem 8</a>
+                </div>
+            </div>
+        </div>
+    </section>
 
-      <div class="res-card">
-        <h3><i class="fa-regular fa-message" style="color:#fec282;"></i> feedback / doubt</h3>
-        <p>anonymous or direct to Hirujit</p>
-        <button class="action-btn" onclick="window.location.href='feedback.html'"><i class="fa-regular fa-envelope"></i> send message</button>
-      </div>
-    </div>
-  </div>
-</main>
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <h2>How It Works</h2>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <i class="fas fa-user-graduate"></i>
+                <h3>Select Class</h3>
+                <p>Choose your class and semester from the options above</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <i class="fas fa-tasks"></i>
+                <h3>Access Materials</h3>
+                <p>View assignments, notes, and study materials</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <i class="fas fa-upload"></i>
+                <h3>Submit Work</h3>
+                <p>Upload your assignments via Google Drive links</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">4</div>
+                <i class="fas fa-chart-line"></i>
+                <h3>Track Progress</h3>
+                <p>Check attendance and assignment grades</p>
+            </div>
+        </div>
+    </section>
 
-<footer>
-  <span>© 2026 Hirujit Ghosh · APC Roy Govt College, Siliguri</span>   |  
-  <a href="#" id="adminFake" style="color:#ffcf9e;">internal</a>
-</footer>
+    <!-- Quick Stats -->
+    <section class="stats-section">
+        <div class="stats-container">
+            <div class="stat-item">
+                <div class="stat-number" id="totalStudents">150+</div>
+                <div class-stat-label">Active Students</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalAssignments">45+</div>
+                <div class-stat-label">Assignments</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalClasses">200+</div>
+                <div class-stat-label">Classes Conducted</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="avgAttendance">92%</div>
+                <div class-stat-label">Avg Attendance</div>
+            </div>
+        </div>
+    </section>
 
-<script>
-  (function() {
-    // name & last login (localStorage)
-    let userName = localStorage.getItem('phys_guestName');
-    if (!userName) {
-      userName = prompt('👋 enter your name (or "student"):') || 'student';
-      localStorage.setItem('phys_guestName', userName);
-    }
-    document.getElementById('displayName').innerText = userName;
+    <!-- Feedback Section -->
+    <section id="feedback" class="feedback-section">
+        <h2>Student Feedback</h2>
+        <div class="feedback-form-container">
+            <form id="feedbackForm">
+                <div class="form-group">
+                    <input type="text" id="feedbackName" placeholder="Your Name" required>
+                </div>
+                <div class="form-group">
+                    <select id="feedbackClass" required>
+                        <option value="">Select Class</option>
+                        <option value="11">Class 11</option>
+                        <option value="12">Class 12</option>
+                        <option value="BSc">BSc</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <textarea id="feedbackMessage" rows="4" placeholder="Your feedback..." required></textarea>
+                </div>
+                <div class="form-group rating-group">
+                    <label>Rating:</label>
+                    <div class="star-rating">
+                        <i class="far fa-star" data-rating="1"></i>
+                        <i class="far fa-star" data-rating="2"></i>
+                        <i class="far fa-star" data-rating="3"></i>
+                        <i class="far fa-star" data-rating="4"></i>
+                        <i class="far fa-star" data-rating="5"></i>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit Feedback</button>
+            </form>
+        </div>
+    </section>
 
-    const lastKey = 'phys_last_visit';
-    const last = localStorage.getItem(lastKey);
-    const now = new Date();
-    localStorage.setItem(lastKey, now.toISOString());
-    if (last) {
-      const days = Math.floor((now - new Date(last)) / (1000*3600*24));
-      document.getElementById('lastLogin').innerText = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
-    } else {
-      document.getElementById('lastLogin').innerText = 'first time';
-    }
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>Physics Learning Portal</h4>
+                <p>Making physics accessible to everyone</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="#classes">Classes</a></li>
+                    <li><a href="homework.html">Homework</a></li>
+                    <li><a href="attendance.html">Attendance</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Contact</h4>
+                <p><i class="fas fa-envelope"></i> teacher@physicsportal.com</p>
+                <p><i class="fas fa-phone"></i> +91 9876543210</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 Physics Learning Portal. All rights reserved.</p>
+        </div>
+    </footer>
 
-    // other students button with password = "hirujit123"
-    const otherBtn = document.getElementById('otherStudentBtn');
-    const guestMsg = document.getElementById('guestMessage');
-    otherBtn.addEventListener('click', () => {
-      const pwd = prompt('🔐 enter guest password:');
-      if (pwd === 'hirujit123') {
-        guestMsg.innerHTML = '✅ guest access granted – semester materials now visible.';
-        sessionStorage.setItem('guest_ok', 'yes');
-      } else {
-        guestMsg.innerHTML = '❌ incorrect password. try "hirujit123"';
-      }
-    });
-
-    // announcements (load & admin update via footer)
-    function loadAnnouncements() {
-      const list = document.getElementById('announceList');
-      const countSpan = document.getElementById('annCount');
-      const timeSpan = document.getElementById('annTime');
-      let stored = localStorage.getItem('phys_announce');
-      let announcements;
-      if (stored) {
-        announcements = JSON.parse(stored);
-      } else {
-        announcements = [
-          { title: '⚡ assignment', content: 'quantum mechanics due 28 Mar' },
-          { title: '🔭 lab', content: 'computational physics data updated' },
-          { title: '📄 PYQ', content: '2023 major papers uploaded' }
-        ];
-      }
-      list.innerHTML = '';
-      announcements.forEach(a => {
-        const li = document.createElement('li');
-        li.innerHTML = `<strong>${a.title}:</strong> ${a.content}`;
-        list.appendChild(li);
-      });
-      countSpan.textContent = announcements.length;
-      timeSpan.textContent = `updated: ${new Date().toLocaleTimeString()}`;
-    }
-    loadAnnouncements();
-
-    document.getElementById('adminFake').addEventListener('click', (e) => {
-      e.preventDefault();
-      const newText = prompt('add announcement (format: Title|Description)');
-      if (newText && newText.includes('|')) {
-        const parts = newText.split('|');
-        let curr = JSON.parse(localStorage.getItem('phys_announce') || '[]');
-        curr.unshift({ title: parts[0].trim(), content: parts[1].trim() });
-        curr = curr.slice(0, 5);
-        localStorage.setItem('phys_announce', JSON.stringify(curr));
-        loadAnnouncements();
-        alert('✅ announcement added (simulated)');
-      } else if (newText) alert('use format: title|description');
-    });
-
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'phys_announce') loadAnnouncements();
-    });
-  })();
-</script>
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/index.js"></script>
 </body>
 </html>
