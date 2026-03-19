@@ -1,9 +1,8 @@
-// homework.js - COMPLETE WORKING VERSION with Apps Script upload
+// homework.js - WORKING VERSION with iframe method
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Homework page loaded');
     
-    // Load assignments
     loadAssignments();
     
     // Setup filters
@@ -19,7 +18,6 @@ document.addEventListener('DOMContentLoaded', function() {
         applyFilters.addEventListener('click', filterAssignments);
     }
     
-    // File upload handling
     setupFileUpload();
     
     // Form submission
@@ -38,11 +36,43 @@ document.addEventListener('DOMContentLoaded', function() {
             closeModal();
         }
     });
+    
+    // Listen for iframe response
+    window.addEventListener('message', receiveMessage, false);
 });
 
 // Global variables
 let allAssignments = [];
 let selectedFile = null;
+
+// ============================================
+// RECEIVE MESSAGE FROM IFRAME
+// ============================================
+
+function receiveMessage(event) {
+    console.log('Message from iframe:', event.data);
+    
+    try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        
+        if (data.success) {
+            // Show success
+            document.getElementById('submissionForm').style.display = 'none';
+            document.getElementById('submissionSuccess').style.display = 'block';
+            document.getElementById('progressBar').style.display = 'none';
+            
+            console.log('Upload successful:', data);
+        } else {
+            alert('Upload failed: ' + (data.error || 'Unknown error'));
+            
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('submitBtn').innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
+            document.getElementById('progressBar').style.display = 'none';
+        }
+    } catch (e) {
+        console.log('Message not JSON:', event.data);
+    }
+}
 
 // ============================================
 // SETUP FILE UPLOAD
@@ -111,10 +141,6 @@ async function loadAssignments() {
     }
 }
 
-// ============================================
-// CREATE ASSIGNMENT CARD
-// ============================================
-
 function createAssignmentCard(assignment) {
     const card = document.createElement('div');
     card.className = 'assignment-card';
@@ -147,10 +173,6 @@ function createAssignmentCard(assignment) {
     
     return card;
 }
-
-// ============================================
-// FILTER FUNCTIONS
-// ============================================
 
 function updateSemesterOptions() {
     const classFilter = document.getElementById('classFilter');
@@ -193,10 +215,6 @@ function filterAssignments() {
     }
 }
 
-// ============================================
-// OPEN SUBMISSION MODAL
-// ============================================
-
 window.openSubmissionModal = async function(assignmentId) {
     console.log('Opening modal for assignment:', assignmentId);
     
@@ -208,19 +226,16 @@ window.openSubmissionModal = async function(assignmentId) {
         return;
     }
     
-    // Store assignment info
     document.getElementById('assignmentId').value = assignmentId;
     document.getElementById('assignmentClass').value = assignment.class;
     document.getElementById('assignmentSemester').value = assignment.semester;
     
-    // Show assignment details
     document.getElementById('assignmentDetails').innerHTML = `
         <h3>${assignment.title}</h3>
         <p><strong>Class:</strong> ${assignment.class} - Semester ${assignment.semester}</p>
         <p><strong>Deadline:</strong> ${new Date(assignment.deadline).toLocaleDateString()}</p>
     `;
     
-    // Load students
     const studentSelect = document.getElementById('studentSelect');
     studentSelect.innerHTML = '<option value="">Loading students...</option>';
     studentSelect.disabled = true;
@@ -241,14 +256,9 @@ window.openSubmissionModal = async function(assignmentId) {
         });
     }
     
-    // Reset and show modal
     resetForm();
     modal.style.display = 'block';
 }
-
-// ============================================
-// LOAD STUDENTS
-// ============================================
 
 async function loadStudents(classVal, semesterVal) {
     console.log(`Loading students for class ${classVal}, sem ${semesterVal}`);
@@ -277,10 +287,6 @@ async function loadStudents(classVal, semesterVal) {
         return [];
     }
 }
-
-// ============================================
-// FILE HANDLING
-// ============================================
 
 function validateAndSelectFile(file) {
     if (file.type !== 'application/pdf') {
@@ -326,7 +332,7 @@ function validateForm() {
 }
 
 // ============================================
-// HANDLE SUBMISSION - WITH APPS SCRIPT UPLOAD
+// HANDLE SUBMISSION - USING IFRAME METHOD
 // ============================================
 
 async function handleSubmission(e) {
@@ -345,62 +351,20 @@ async function handleSubmission(e) {
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
     progressBar.style.display = 'block';
-    progressFill.style.width = '10%';
-    progressFill.textContent = '10%';
+    progressFill.style.width = '30%';
+    progressFill.textContent = '30%';
     
     const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Uploading...';
+    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Submitting...';
     
     try {
         // Get student info
         const studentDoc = await db.collection('students').doc(studentId).get();
         const student = studentDoc.data();
         
-        progressFill.style.width = '20%';
-        progressFill.textContent = '20%';
-        
-        // Create FormData for Apps Script
-        const formData = new FormData();
-        formData.append('assignmentId', assignmentId);
-        formData.append('studentName', student.name);
-        formData.append('studentClass', student.class);
-        formData.append('studentSemester', student.semester);
-        formData.append('comments', comments || '');
-        formData.append('file', selectedFile);
-        
-        // Log what we're sending
-        console.log('Sending to Apps Script:');
-        console.log('Student:', student.name);
-        console.log('File:', selectedFile.name);
-        console.log('File size:', selectedFile.size);
-        
-        progressFill.style.width = '30%';
-        progressFill.textContent = '30%';
-        
-        // Send to Apps Script
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: formData
-        });
-        
-        progressFill.style.width = '60%';
-        progressFill.textContent = '60%';
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        // Get the response
-        const result = await response.json();
-        console.log('Apps Script response:', result);
-        
-        if (!result.success) {
-            throw new Error(result.error || 'Upload failed');
-        }
-        
-        progressFill.style.width = '80%';
-        progressFill.textContent = '80%';
+        progressFill.style.width = '50%';
+        progressFill.textContent = '50%';
         
         // Save to Firestore
         const submissionData = {
@@ -411,8 +375,6 @@ async function handleSubmission(e) {
             studentSemester: student.semester,
             fileName: selectedFile.name,
             fileSize: selectedFile.size,
-            fileUrl: result.fileUrl || '',
-            fileId: result.fileId || '',
             comments: comments || '',
             status: 'submitted',
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -420,15 +382,46 @@ async function handleSubmission(e) {
         
         await db.collection('submissions').add(submissionData);
         
+        progressFill.style.width = '70%';
+        progressFill.textContent = '70%';
+        
+        // Set up the form for iframe submission
+        const form = document.getElementById('submissionForm');
+        
+        // Set form action to Apps Script
+        form.action = APPS_SCRIPT_URL;
+        form.method = 'POST';
+        form.enctype = 'multipart/form-data';
+        form.target = 'uploadTarget';
+        
+        // Add hidden fields for the data
+        let hiddenFields = {
+            'assignmentId': assignmentId,
+            'studentName': student.name,
+            'studentClass': student.class,
+            'studentSemester': student.semester,
+            'comments': comments || ''
+        };
+        
+        // Remove any existing hidden fields
+        document.querySelectorAll('.dynamic-hidden').forEach(el => el.remove());
+        
+        // Add new hidden fields
+        for (let key in hiddenFields) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = hiddenFields[key];
+            input.className = 'dynamic-hidden';
+            form.appendChild(input);
+        }
+        
+        // Submit the form
+        form.submit();
+        
+        // Show completion message (iframe will handle the response)
         progressFill.style.width = '100%';
         progressFill.textContent = '100%';
-        
-        // Show success
-        setTimeout(() => {
-            document.getElementById('submissionForm').style.display = 'none';
-            document.getElementById('submissionSuccess').style.display = 'block';
-            progressBar.style.display = 'none';
-        }, 500);
         
     } catch (error) {
         console.error('Submission error:', error);
@@ -453,6 +446,9 @@ function resetForm() {
     document.getElementById('progressBar').style.display = 'none';
     document.getElementById('submitBtn').disabled = true;
     selectedFile = null;
+    
+    // Remove any dynamically added hidden fields
+    document.querySelectorAll('.dynamic-hidden').forEach(el => el.remove());
 }
 
 window.closeModal = function() {
@@ -463,5 +459,4 @@ window.closeModal = function() {
     }
 }
 
-// Add student select listener
 document.getElementById('studentSelect')?.addEventListener('change', validateForm);
