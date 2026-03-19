@@ -1,4 +1,4 @@
-// homework.js - Fixed version with Google Drive upload via Apps Script
+// homework.js - Fixed version with Apps Script upload
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Homework page loaded');
@@ -38,20 +38,11 @@ document.addEventListener('DOMContentLoaded', function() {
             closeModal();
         }
     });
-    
-    // Student select listener
-    const studentSelect = document.getElementById('studentSelect');
-    if (studentSelect) {
-        studentSelect.addEventListener('change', validateForm);
-    }
 });
 
 // Global variables
 let allAssignments = [];
 let selectedFile = null;
-
-// Google Apps Script URL - UPDATE THIS WITH YOUR DEPLOYED URL
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxWM5idEuQgww_TvCk7sp0uhLOsttGnbPQ-mHECT-LeZVyA2HfMgRRqZYmxRiswWX_R/exec";
 
 // ============================================
 // SETUP FILE UPLOAD
@@ -64,40 +55,14 @@ function setupFileUpload() {
     
     if (!fileUploadArea || !fileInput) return;
     
-    // Click on area triggers file input
     fileUploadArea.addEventListener('click', () => fileInput.click());
     
-    // Drag and drop functionality
-    fileUploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        fileUploadArea.style.background = '#e3f2fd';
-        fileUploadArea.style.borderColor = '#2980b9';
-    });
-    
-    fileUploadArea.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        fileUploadArea.style.background = '#f8f9fa';
-        fileUploadArea.style.borderColor = '#3498db';
-    });
-    
-    fileUploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileUploadArea.style.background = '#f8f9fa';
-        fileUploadArea.style.borderColor = '#3498db';
-        
-        if (e.dataTransfer.files.length > 0) {
-            validateAndSelectFile(e.dataTransfer.files[0]);
-        }
-    });
-    
-    // File input change
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
             validateAndSelectFile(e.target.files[0]);
         }
     });
     
-    // Remove file button
     if (removeFileBtn) {
         removeFileBtn.addEventListener('click', removeFile);
     }
@@ -197,7 +162,7 @@ function updateSemesterOptions() {
     
     if (!classFilter.value) return;
     
-    const numSemesters = classFilter.value === 'BSc' ? 6 : 2;
+    const numSemesters = classFilter.value === 'BSc' ? 8 : 2;
     for (let i = 1; i <= numSemesters; i++) {
         const option = document.createElement('option');
         option.value = i;
@@ -260,22 +225,14 @@ window.openSubmissionModal = async function(assignmentId) {
     studentSelect.innerHTML = '<option value="">Loading students...</option>';
     studentSelect.disabled = true;
     
-    // Convert semester to number for comparison
-    const classVal = assignment.class;
-    const semesterVal = parseInt(assignment.semester);
-    
-    console.log(`Loading students for class: ${classVal}, semester: ${semesterVal}`);
-    
-    const students = await loadStudents(classVal, semesterVal);
+    const students = await loadStudents(assignment.class, assignment.semester);
     
     studentSelect.innerHTML = '<option value="">-- Select your name --</option>';
     studentSelect.disabled = false;
     
     if (students.length === 0) {
-        studentSelect.innerHTML = '<option value="">No students found for this class/semester</option>';
-        console.log('No students found');
+        studentSelect.innerHTML = '<option value="">No students found</option>';
     } else {
-        console.log(`Found ${students.length} students`);
         students.forEach(s => {
             const option = document.createElement('option');
             option.value = s.id;
@@ -297,29 +254,19 @@ async function loadStudents(classVal, semesterVal) {
     console.log(`Loading students for class ${classVal}, sem ${semesterVal}`);
     
     try {
-        // Convert semesterVal to number if it's a string
-        const semNumber = typeof semesterVal === 'string' ? parseInt(semesterVal) : semesterVal;
-        
-        console.log('Query parameters:', {
-            class: classVal,
-            semester: semNumber,
-            classType: typeof classVal,
-            semesterType: typeof semNumber
-        });
-        
         const snapshot = await db.collection('students')
             .where('class', '==', classVal)
-            .where('semester', '==', semNumber)
+            .where('semester', '==', semesterVal)
             .orderBy('name')
             .get();
         
-        console.log(`Query returned ${snapshot.size} students`);
+        console.log(`Found ${snapshot.size} students`);
         
         const students = [];
         snapshot.forEach(doc => {
             students.push({
                 id: doc.id,
-                name: doc.data().name || 'Unknown'
+                name: doc.data().name
             });
         });
         
@@ -327,11 +274,6 @@ async function loadStudents(classVal, semesterVal) {
         
     } catch (error) {
         console.error('Error loading students:', error);
-        
-        if (error.code === 'failed-precondition') {
-            alert('Please create the required index in Firebase Console. Check console for details.');
-        }
-        
         return [];
     }
 }
@@ -346,7 +288,7 @@ function validateAndSelectFile(file) {
         return;
     }
     
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+    if (file.size > 10 * 1024 * 1024) {
         alert('File size must be less than 10MB.');
         return;
     }
@@ -384,7 +326,7 @@ function validateForm() {
 }
 
 // ============================================
-// HANDLE SUBMISSION - WITH GOOGLE DRIVE UPLOAD
+// HANDLE SUBMISSION - WITH APPS SCRIPT UPLOAD
 // ============================================
 
 async function handleSubmission(e) {
@@ -399,82 +341,53 @@ async function handleSubmission(e) {
         return;
     }
     
-    // Get UI elements
+    // Show progress
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
-    const submitBtn = document.getElementById('submitBtn');
-    const form = document.getElementById('submissionForm');
-    const successDiv = document.getElementById('submissionSuccess');
-    
-    // Show progress
     progressBar.style.display = 'block';
     progressFill.style.width = '10%';
     progressFill.textContent = '10%';
     
+    const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Submitting...';
     
     try {
-        // Step 1: Get student info
+        // Get student info
+        const studentDoc = await db.collection('students').doc(studentId).get();
+        const student = studentDoc.data();
+        
         progressFill.style.width = '20%';
         progressFill.textContent = '20%';
         
-        console.log('Fetching student with ID:', studentId);
-        const studentDoc = await db.collection('students').doc(studentId).get();
+        // Create FormData for Apps Script
+        const formData = new FormData();
+        formData.append('assignmentId', assignmentId);
+        formData.append('studentName', student.name);
+        formData.append('studentClass', student.class);
+        formData.append('studentSemester', student.semester);
+        formData.append('comments', comments || '');
+        formData.append('file', selectedFile);
         
-        if (!studentDoc.exists) {
-            throw new Error('Student not found with ID: ' + studentId);
-        }
-        
-        const student = studentDoc.data();
-        console.log('Student found:', student);
-        
-        // Step 2: Convert file to base64 for Apps Script
         progressFill.style.width = '30%';
         progressFill.textContent = '30%';
         
-        const base64Data = await fileToBase64(selectedFile);
+        // Upload to Apps Script
+        console.log('Uploading to Apps Script:', APPS_SCRIPT_URL);
         
-        progressFill.style.width = '50%';
-        progressFill.textContent = '50%';
-        
-        // Step 3: Prepare data for Apps Script
-        const timestamp = Date.now();
-        const safeStudentName = student.name.replace(/[^a-zA-Z0-9]/g, '_');
-        const fileName = `${safeStudentName}_${assignmentId}_${timestamp}.pdf`;
-        
-        const payload = {
-            fileName: fileName,
-            fileType: selectedFile.type,
-            fileData: base64Data,
-            studentName: student.name,
-            studentId: studentId,
-            studentClass: student.class,
-            studentSemester: student.semester,
-            assignmentId: assignmentId,
-            comments: comments,
-            timestamp: timestamp
-        };
-        
-        console.log('Sending to Apps Script...');
-        
-        // Step 4: Send to Apps Script
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors', // This is important for CORS
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
+            body: formData,
+            mode: 'no-cors' // This is important for CORS
         });
         
-        progressFill.style.width = '80%';
-        progressFill.textContent = '80%';
+        progressFill.style.width = '60%';
+        progressFill.textContent = '60%';
         
-        // Note: With no-cors, we can't read the response
-        // We'll assume it worked and save to Firestore
+        // Note: With 'no-cors' we can't read the response
+        console.log('Upload sent to Apps Script');
         
-        // Step 5: Save submission data to Firestore
+        // Save to Firestore as backup
         const submissionData = {
             assignmentId: assignmentId,
             studentId: studentId,
@@ -482,98 +395,46 @@ async function handleSubmission(e) {
             studentClass: student.class,
             studentSemester: student.semester,
             fileName: selectedFile.name,
-            storedFileName: fileName,
             fileSize: selectedFile.size,
             comments: comments || '',
             status: 'submitted',
-            submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            driveFolder: `Assignments/${assignmentId}` // Optional: store folder info
+            submittedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        console.log('Saving submission to Firestore:', submissionData);
         await db.collection('submissions').add(submissionData);
         
         progressFill.style.width = '100%';
         progressFill.textContent = '100%';
         
-        // Step 6: Show success message
+        // Show success
         setTimeout(() => {
-            form.style.display = 'none';
-            successDiv.style.display = 'block';
+            document.getElementById('submissionForm').style.display = 'none';
+            document.getElementById('submissionSuccess').style.display = 'block';
             progressBar.style.display = 'none';
-            
-            // Clear the selected file
-            selectedFile = null;
-            
-            console.log('Submission complete! File sent to Google Drive');
         }, 500);
         
     } catch (error) {
         console.error('Submission error:', error);
-        
         alert('Error submitting assignment: ' + error.message);
         
-        // Reset button
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
         progressBar.style.display = 'none';
-        
-        // Reset progress
-        progressFill.style.width = '0%';
-        progressFill.textContent = '0%';
     }
 }
 
 // ============================================
-// HELPER: Convert File to Base64
-// ============================================
-
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => {
-            // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
-            const base64 = reader.result.split(',')[1];
-            resolve(base64);
-        };
-        reader.onerror = error => reject(error);
-    });
-}
-
-// ============================================
-// MODAL HELPER FUNCTIONS
+// MODAL HELPER
 // ============================================
 
 function resetForm() {
-    const form = document.getElementById('submissionForm');
-    const successDiv = document.getElementById('submissionSuccess');
-    const fileInfo = document.getElementById('fileInfo');
-    const fileUploadArea = document.getElementById('fileUploadArea');
-    const progressBar = document.getElementById('progressBar');
-    const submitBtn = document.getElementById('submitBtn');
-    const progressFill = document.getElementById('progressFill');
-    const fileInput = document.getElementById('fileUpload');
-    
-    if (form) form.style.display = 'block';
-    if (successDiv) successDiv.style.display = 'none';
-    if (fileInfo) fileInfo.style.display = 'none';
-    if (fileUploadArea) fileUploadArea.style.display = 'block';
-    if (progressBar) progressBar.style.display = 'none';
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
-    }
-    if (progressFill) {
-        progressFill.style.width = '0%';
-        progressFill.textContent = '0%';
-    }
-    
-    // Clear file input
-    if (fileInput) {
-        fileInput.value = '';
-    }
-    
+    document.getElementById('submissionForm').reset();
+    document.getElementById('submissionForm').style.display = 'block';
+    document.getElementById('submissionSuccess').style.display = 'none';
+    document.getElementById('fileInfo').style.display = 'none';
+    document.getElementById('fileUploadArea').style.display = 'block';
+    document.getElementById('progressBar').style.display = 'none';
+    document.getElementById('submitBtn').disabled = true;
     selectedFile = null;
 }
 
@@ -584,3 +445,6 @@ window.closeModal = function() {
         resetForm();
     }
 }
+
+// Add student select listener
+document.getElementById('studentSelect')?.addEventListener('change', validateForm);
