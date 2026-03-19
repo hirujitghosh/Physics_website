@@ -383,109 +383,91 @@ async function loadDashboardStats() {
 }
 
 // ============================================
-// STUDENT MANAGEMENT
+// STUDENT MANAGEMENT - COMPLETE FIXED VERSION
 // ============================================
 
-async function loadStudentsList() {
-    const tbody = document.getElementById('studentsList');
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
+// Make sure this is in your DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    // ... your existing event listeners ...
     
-    try {
-        const snapshot = await db.collection('students').orderBy('name').get();
-        
-        if (snapshot.empty) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No students found</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = '';
-        snapshot.forEach(doc => {
-            const student = doc.data();
-            const row = document.createElement('tr');
-            row.dataset.id = doc.id;
-            row.innerHTML = `
-                <td>${student.name}</td>
-                <td>${student.class}</td>
-                <td>${student.semester}</td>
-                <td>${student.email || '-'}</td>
-                <td>${student.phone || '-'}</td>
-                <td class="action-btns">
-                    <button class="btn-icon edit" onclick="editStudent('${doc.id}')">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-icon delete" onclick="deleteStudent('${doc.id}')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
+    // ADD THIS - Event listener for class change in student modal
+    const studentClassSelect = document.getElementById('studentClass');
+    if (studentClassSelect) {
+        studentClassSelect.addEventListener('change', function() {
+            updateSemesterOptions();
         });
-        
-    } catch (error) {
-        console.error('Error loading students:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="error">Error loading students</td></tr>';
     }
-}
-
-function filterStudents() {
-    const searchTerm = document.getElementById('studentSearch').value.toLowerCase();
-    const classFilter = document.getElementById('filterClass').value;
     
-    const rows = document.querySelectorAll('#studentsList tr');
-    
-    rows.forEach(row => {
-        const name = row.cells[0]?.textContent.toLowerCase() || '';
-        const studentClass = row.cells[1]?.textContent || '';
-        
-        const matchesSearch = name.includes(searchTerm);
-        const matchesClass = !classFilter || studentClass === classFilter;
-        
-        row.style.display = matchesSearch && matchesClass ? '' : 'none';
-    });
-}
+    // ... rest of your event listeners ...
+});
 
+// FIXED: openStudentModal function
 function openStudentModal(studentData = null) {
     const modal = document.getElementById('studentModal');
     const title = document.getElementById('modalTitle');
     const form = document.getElementById('studentForm');
+    
+    if (!modal || !title || !form) return;
     
     if (studentData) {
         title.textContent = 'Edit Student';
         document.getElementById('studentId').value = studentData.id;
         document.getElementById('studentName').value = studentData.name;
         document.getElementById('studentClass').value = studentData.class;
+        
+        // Update semester options based on selected class
         updateSemesterOptions();
-        document.getElementById('studentSemester').value = studentData.semester;
+        
+        // Small delay to ensure options are populated before setting value
+        setTimeout(() => {
+            document.getElementById('studentSemester').value = studentData.semester;
+        }, 50);
+        
         document.getElementById('studentEmail').value = studentData.email || '';
         document.getElementById('studentPhone').value = studentData.phone || '';
     } else {
         title.textContent = 'Add Student';
         form.reset();
         document.getElementById('studentId').value = '';
+        
+        // Update semester options (defaults to Class 11)
         updateSemesterOptions();
     }
     
     modal.style.display = 'block';
 }
 
+// FIXED: updateSemesterOptions function
 function updateSemesterOptions() {
     const classSelect = document.getElementById('studentClass');
     const semesterSelect = document.getElementById('studentSemester');
     
+    if (!classSelect || !semesterSelect) return;
+    
+    // Clear existing options
     semesterSelect.innerHTML = '';
     
-    const semesters = classSelect.value === 'BSc' ? 8 : 2;
+    // Get selected class value
+    const selectedClass = classSelect.value;
+    
+    // Determine number of semesters based on class
+    let semesters = 2; // default for Class 11 and 12
+    if (selectedClass === 'BSc') {
+        semesters = 8;
+    }
+    
+    // Populate semester options
     for (let i = 1; i <= semesters; i++) {
         const option = document.createElement('option');
         option.value = i;
         option.textContent = `Semester ${i}`;
         semesterSelect.appendChild(option);
     }
+    
+    console.log(`Updated semester options for class ${selectedClass}: ${semesters} semesters`);
 }
 
-// Add event listener for class change in student modal
-document.getElementById('studentClass')?.addEventListener('change', updateSemesterOptions);
-
+// Also fix the handleStudentSubmit function to ensure data is saved correctly
 async function handleStudentSubmit(e) {
     e.preventDefault();
     
@@ -493,22 +475,28 @@ async function handleStudentSubmit(e) {
     const studentData = {
         name: document.getElementById('studentName').value,
         class: document.getElementById('studentClass').value,
-        semester: document.getElementById('studentSemester').value,
+        semester: document.getElementById('studentSemester').value, // This will now have a value
         email: document.getElementById('studentEmail').value,
         phone: document.getElementById('studentPhone').value,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     
+    // Validate that semester is selected
+    if (!studentData.semester) {
+        alert('Please select a semester');
+        return;
+    }
+    
     try {
         if (studentId) {
             // Update existing student
             await db.collection('students').doc(studentId).update(studentData);
-            showNotification('Student updated successfully', 'success');
+            alert('Student updated successfully');
         } else {
             // Add new student
             studentData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection('students').add(studentData);
-            showNotification('Student added successfully', 'success');
+            alert('Student added successfully');
         }
         
         closeModal();
@@ -517,35 +505,9 @@ async function handleStudentSubmit(e) {
         
     } catch (error) {
         console.error('Error saving student:', error);
-        showNotification('Error saving student', 'error');
+        alert('Error saving student: ' + error.message);
     }
 }
-
-window.editStudent = async function(studentId) {
-    try {
-        const doc = await db.collection('students').doc(studentId).get();
-        if (doc.exists) {
-            openStudentModal({ id: doc.id, ...doc.data() });
-        }
-    } catch (error) {
-        console.error('Error loading student:', error);
-    }
-};
-
-window.deleteStudent = async function(studentId) {
-    if (!confirm('Are you sure you want to delete this student? This action cannot be undone.')) return;
-    
-    try {
-        await db.collection('students').doc(studentId).delete();
-        loadStudentsList();
-        loadDashboardStats();
-        showNotification('Student deleted successfully', 'success');
-    } catch (error) {
-        console.error('Error deleting student:', error);
-        showNotification('Error deleting student', 'error');
-    }
-};
-
 // ============================================
 // ASSIGNMENT MANAGEMENT
 // ============================================
