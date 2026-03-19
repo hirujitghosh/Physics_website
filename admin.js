@@ -1,4 +1,5 @@
-// admin.js
+// admin.js - Updated with admin verification and first-time setup
+
 document.addEventListener('DOMContentLoaded', function() {
     // Check authentication state
     firebase.auth().onAuthStateChanged(handleAuthState);
@@ -36,7 +37,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('filterAssignment').addEventListener('change', loadSubmissions);
     
     // Set today's date for attendance
-    document.getElementById('attendanceDate').valueAsDate = new Date();
+    const attendanceDate = document.getElementById('attendanceDate');
+    if (attendanceDate) {
+        attendanceDate.valueAsDate = new Date();
+    }
     
     // Modal close handlers
     document.querySelectorAll('.close-modal').forEach(btn => {
@@ -48,26 +52,215 @@ document.addEventListener('DOMContentLoaded', function() {
             closeModal();
         }
     });
+    
+    // Check if any admins exist (for first-time setup)
+    checkFirstAdmin();
 });
 
-// Auth State Handler
-function handleAuthState(user) {
+// ============================================
+// AUTHENTICATION & ADMIN VERIFICATION
+// ============================================
+
+// Check if first admin needs to be created
+async function checkFirstAdmin() {
+    try {
+        const snapshot = await db.collection('admins').limit(1).get();
+        
+        if (snapshot.empty) {
+            // No admins found, show setup option
+            showFirstTimeSetup();
+        }
+    } catch (error) {
+        console.error('Error checking admins:', error);
+    }
+}
+
+// Show first-time setup UI
+function showFirstTimeSetup() {
+    const loginCard = document.querySelector('.login-card');
+    if (!loginCard) return;
+    
+    // Check if setup notice already exists
+    if (document.getElementById('firstTimeSetup')) return;
+    
+    const setupHtml = `
+        <div id="firstTimeSetup" class="setup-notice" style="margin-top: 20px; padding: 20px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #1976d2;">
+            <h3 style="color: #1976d2; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-rocket"></i> First Time Setup
+            </h3>
+            <p style="margin-bottom: 15px; color: #555;">No admin users found. Create your first admin account to get started.</p>
+            
+            <form id="firstAdminForm" style="margin-top: 15px;">
+                <div style="margin-bottom: 10px;">
+                    <input type="text" id="setupName" placeholder="Full Name" required 
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <input type="email" id="setupEmail" placeholder="Email" required 
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <input type="password" id="setupPassword" placeholder="Password (min. 6 characters)" required 
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" style="flex: 1; padding: 10px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        <i class="fas fa-user-plus"></i> Create Admin Account
+                    </button>
+                </div>
+            </form>
+            
+            <div id="setupMessage" style="margin-top: 10px; display: none;"></div>
+        </div>
+    `;
+    
+    loginCard.insertAdjacentHTML('beforeend', setupHtml);
+    
+    // Add event listener for first admin form
+    document.getElementById('firstAdminForm').addEventListener('submit', createFirstAdmin);
+}
+
+// Create first admin user
+async function createFirstAdmin(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('setupName').value;
+    const email = document.getElementById('setupEmail').value;
+    const password = document.getElementById('setupPassword').value;
+    const messageDiv = document.getElementById('setupMessage');
+    
+    // Validation
+    if (password.length < 6) {
+        showSetupMessage('Password must be at least 6 characters', 'error');
+        return;
+    }
+    
+    try {
+        showSetupMessage('Creating admin account...', 'info');
+        
+        // Create user in Firebase Authentication
+        const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        // Update profile with name
+        await user.updateProfile({
+            displayName: name
+        });
+        
+        // Add to admins collection
+        await db.collection('admins').doc(user.uid).set({
+            name: name,
+            email: email,
+            role: 'superadmin',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: 'system'
+        });
+        
+        showSetupMessage('Admin created successfully! Redirecting to dashboard...', 'success');
+        
+        // Clear and hide setup form
+        setTimeout(() => {
+            document.getElementById('firstTimeSetup').style.display = 'none';
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error creating admin:', error);
+        
+        let errorMessage = 'Error creating admin. ';
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage += 'Email already exists.';
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage += 'Password is too weak.';
+        } else {
+            errorMessage += error.message;
+        }
+        
+        showSetupMessage(errorMessage, 'error');
+    }
+}
+
+// Helper for setup messages
+function showSetupMessage(message, type) {
+    const messageDiv = document.getElementById('setupMessage');
+    messageDiv.style.display = 'block';
+    messageDiv.textContent = message;
+    
+    // Style based on type
+    messageDiv.style.padding = '10px';
+    messageDiv.style.borderRadius = '4px';
+    
+    if (type === 'error') {
+        messageDiv.style.background = '#ffebee';
+        messageDiv.style.color = '#c62828';
+        messageDiv.style.border = '1px solid #ef9a9a';
+    } else if (type === 'success') {
+        messageDiv.style.background = '#e8f5e8';
+        messageDiv.style.color = '#2e7d32';
+        messageDiv.style.border = '1px solid #a5d6a7';
+    } else {
+        messageDiv.style.background = '#e3f2fd';
+        messageDiv.style.color = '#1565c0';
+        messageDiv.style.border = '1px solid #90caf9';
+    }
+}
+
+// Auth State Handler (UPDATED with admin verification)
+async function handleAuthState(user) {
     const loginSection = document.getElementById('loginSection');
     const adminDashboard = document.getElementById('adminDashboard');
     const adminEmail = document.getElementById('adminEmail');
     
     if (user) {
-        // User is signed in
-        loginSection.style.display = 'none';
-        adminDashboard.style.display = 'block';
-        adminEmail.textContent = user.email;
-        
-        // Load dashboard data
-        loadDashboardStats();
-        loadStudentsList();
-        loadAssignmentsList();
-        loadSubmissions();
-        
+        try {
+            // Check if user is an admin
+            const adminDoc = await db.collection('admins').doc(user.uid).get();
+            
+            if (adminDoc.exists) {
+                // User is admin - show dashboard
+                loginSection.style.display = 'none';
+                adminDashboard.style.display = 'block';
+                adminEmail.textContent = user.email;
+                
+                // Display admin name if available
+                const adminName = adminDoc.data().name;
+                if (adminName) {
+                    document.querySelector('.admin-user').innerHTML = `
+                        <span><i class="fas fa-user-shield"></i> ${adminName}</span>
+                        <span style="margin: 0 10px">|</span>
+                        <span id="adminEmail">${user.email}</span>
+                        <button id="logoutBtn" class="btn-logout">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    `;
+                }
+                
+                // Load dashboard data
+                loadDashboardStats();
+                loadStudentsList();
+                loadAssignmentsList();
+                loadSubmissions();
+                
+                // Update date display
+                const dateDisplay = document.getElementById('currentDate');
+                if (dateDisplay) {
+                    dateDisplay.textContent = new Date().toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    });
+                }
+            } else {
+                // User exists but not in admins collection
+                console.log('User not authorized as admin');
+                await firebase.auth().signOut();
+                showLoginError('You are not authorized as an admin');
+            }
+        } catch (error) {
+            console.error('Error checking admin status:', error);
+            await firebase.auth().signOut();
+            showLoginError('Error verifying admin access');
+        }
     } else {
         // User is signed out
         loginSection.style.display = 'flex';
@@ -75,7 +268,7 @@ function handleAuthState(user) {
     }
 }
 
-// Login Handler
+// Login Handler (UPDATED with better error messages)
 async function handleLogin(e) {
     e.preventDefault();
     
@@ -83,13 +276,46 @@ async function handleLogin(e) {
     const password = document.getElementById('password').value;
     const errorDiv = document.getElementById('loginError');
     
+    // Show loading state
+    const loginBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = loginBtn.innerHTML;
+    loginBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Logging in...';
+    loginBtn.disabled = true;
+    
     try {
         await firebase.auth().signInWithEmailAndPassword(email, password);
         errorDiv.style.display = 'none';
     } catch (error) {
+        console.error('Login error:', error);
         errorDiv.style.display = 'block';
-        errorDiv.textContent = 'Invalid email or password';
+        
+        // User-friendly error messages
+        switch(error.code) {
+            case 'auth/user-not-found':
+            case 'auth/wrong-password':
+                errorDiv.textContent = 'Invalid email or password';
+                break;
+            case 'auth/too-many-requests':
+                errorDiv.textContent = 'Too many failed attempts. Please try again later';
+                break;
+            case 'auth/network-request-failed':
+                errorDiv.textContent = 'Network error. Please check your connection';
+                break;
+            default:
+                errorDiv.textContent = 'Login failed. Please try again';
+        }
+    } finally {
+        // Restore button
+        loginBtn.innerHTML = originalText;
+        loginBtn.disabled = false;
     }
+}
+
+// Helper function to show login errors
+function showLoginError(message) {
+    const errorDiv = document.getElementById('loginError');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
 }
 
 // Logout Handler
@@ -97,7 +323,10 @@ function handleLogout() {
     firebase.auth().signOut();
 }
 
-// Tab Switching
+// ============================================
+// TAB SWITCHING
+// ============================================
+
 function switchTab(e) {
     const tabId = e.target.dataset.tab;
     
@@ -112,9 +341,19 @@ function switchTab(e) {
         pane.classList.remove('active');
     });
     document.getElementById(`${tabId}Tab`).classList.add('active');
+    
+    // Reload data for the tab if needed
+    if (tabId === 'submissions') {
+        loadSubmissions();
+    } else if (tabId === 'assignments') {
+        loadAssignmentsList();
+    }
 }
 
-// Dashboard Stats
+// ============================================
+// DASHBOARD STATS
+// ============================================
+
 async function loadDashboardStats() {
     try {
         // Total students
@@ -131,7 +370,7 @@ async function loadDashboardStats() {
             .get();
         document.getElementById('pendingSubmissions').textContent = submissionsSnap.size;
         
-        // Today's class (count of classes with attendance marked today)
+        // Today's class (count of students with attendance marked today)
         const today = new Date().toISOString().split('T')[0];
         const attendanceSnap = await db.collection('attendance')
             .where('date', '==', today)
@@ -143,7 +382,10 @@ async function loadDashboardStats() {
     }
 }
 
-// Student Management
+// ============================================
+// STUDENT MANAGEMENT
+// ============================================
+
 async function loadStudentsList() {
     const tbody = document.getElementById('studentsList');
     tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
@@ -212,6 +454,7 @@ function openStudentModal(studentData = null) {
         document.getElementById('studentId').value = studentData.id;
         document.getElementById('studentName').value = studentData.name;
         document.getElementById('studentClass').value = studentData.class;
+        updateSemesterOptions();
         document.getElementById('studentSemester').value = studentData.semester;
         document.getElementById('studentEmail').value = studentData.email || '';
         document.getElementById('studentPhone').value = studentData.phone || '';
@@ -219,15 +462,13 @@ function openStudentModal(studentData = null) {
         title.textContent = 'Add Student';
         form.reset();
         document.getElementById('studentId').value = '';
+        updateSemesterOptions();
     }
-    
-    // Update semester options based on class
-    updateSemesterOptions(studentData?.class);
     
     modal.style.display = 'block';
 }
 
-function updateSemesterOptions(selectedClass = '11') {
+function updateSemesterOptions() {
     const classSelect = document.getElementById('studentClass');
     const semesterSelect = document.getElementById('studentSemester');
     
@@ -241,6 +482,9 @@ function updateSemesterOptions(selectedClass = '11') {
         semesterSelect.appendChild(option);
     }
 }
+
+// Add event listener for class change in student modal
+document.getElementById('studentClass')?.addEventListener('change', updateSemesterOptions);
 
 async function handleStudentSubmit(e) {
     e.preventDefault();
@@ -259,10 +503,12 @@ async function handleStudentSubmit(e) {
         if (studentId) {
             // Update existing student
             await db.collection('students').doc(studentId).update(studentData);
+            showNotification('Student updated successfully', 'success');
         } else {
             // Add new student
             studentData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection('students').add(studentData);
+            showNotification('Student added successfully', 'success');
         }
         
         closeModal();
@@ -271,7 +517,7 @@ async function handleStudentSubmit(e) {
         
     } catch (error) {
         console.error('Error saving student:', error);
-        alert('Error saving student');
+        showNotification('Error saving student', 'error');
     }
 }
 
@@ -287,19 +533,23 @@ window.editStudent = async function(studentId) {
 };
 
 window.deleteStudent = async function(studentId) {
-    if (!confirm('Are you sure you want to delete this student?')) return;
+    if (!confirm('Are you sure you want to delete this student? This action cannot be undone.')) return;
     
     try {
         await db.collection('students').doc(studentId).delete();
         loadStudentsList();
         loadDashboardStats();
+        showNotification('Student deleted successfully', 'success');
     } catch (error) {
         console.error('Error deleting student:', error);
-        alert('Error deleting student');
+        showNotification('Error deleting student', 'error');
     }
 };
 
-// Assignment Management
+// ============================================
+// ASSIGNMENT MANAGEMENT
+// ============================================
+
 async function loadAssignmentsList() {
     const container = document.getElementById('assignmentsList');
     container.innerHTML = '<div class="loading-spinner"><i class="fas fa-circle-notch fa-spin"></i></div>';
@@ -355,6 +605,22 @@ function openAssignmentModal() {
     document.getElementById('assignmentForm').reset();
 }
 
+// Add event listener for class change in assignment modal
+document.getElementById('assignmentClass')?.addEventListener('change', function() {
+    const classVal = this.value;
+    const semesterSelect = document.getElementById('assignmentSemester');
+    
+    semesterSelect.innerHTML = '';
+    
+    const semesters = classVal === 'BSc' ? 8 : 2;
+    for (let i = 1; i <= semesters; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `Semester ${i}`;
+        semesterSelect.appendChild(option);
+    }
+});
+
 async function handleAssignmentSubmit(e) {
     e.preventDefault();
     
@@ -375,9 +641,10 @@ async function handleAssignmentSubmit(e) {
         closeModal();
         loadAssignmentsList();
         loadDashboardStats();
+        showNotification('Assignment created successfully', 'success');
     } catch (error) {
         console.error('Error creating assignment:', error);
-        alert('Error creating assignment');
+        showNotification('Error creating assignment', 'error');
     }
 }
 
@@ -387,12 +654,17 @@ window.deleteAssignment = async function(assignmentId) {
     try {
         await db.collection('assignments').doc(assignmentId).delete();
         loadAssignmentsList();
+        showNotification('Assignment deleted successfully', 'success');
     } catch (error) {
         console.error('Error deleting assignment:', error);
+        showNotification('Error deleting assignment', 'error');
     }
 };
 
-// Attendance Management
+// ============================================
+// ATTENDANCE MANAGEMENT
+// ============================================
+
 function updateAttendanceSemester() {
     const classVal = document.getElementById('attendanceClass').value;
     const semesterSelect = document.getElementById('attendanceSemester');
@@ -465,10 +737,10 @@ async function loadAttendanceStudents() {
                     </select>
                 </td>
                 <td>
-                    <button class="btn-icon" onclick="markSingleAttendance(this, 'present')">
+                    <button class="btn-icon" onclick="markSingleAttendance(this, 'present')" title="Mark Present">
                         <i class="fas fa-check-circle"></i>
                     </button>
-                    <button class="btn-icon" onclick="markSingleAttendance(this, 'absent')">
+                    <button class="btn-icon" onclick="markSingleAttendance(this, 'absent')" title="Mark Absent">
                         <i class="fas fa-times-circle"></i>
                     </button>
                 </td>
@@ -504,6 +776,11 @@ async function saveAttendance() {
     const batch = db.batch();
     const rows = document.querySelectorAll('#attendanceList tr');
     
+    if (rows.length === 0) {
+        alert('No students to mark attendance for');
+        return;
+    }
+    
     // Track attendance counts for summary
     const attendanceCounts = {
         present: 0,
@@ -537,11 +814,11 @@ async function saveAttendance() {
         // Update attendance summaries for each student
         await updateAttendanceSummaries(classVal, semesterVal, attendanceCounts);
         
-        alert('Attendance saved successfully!');
+        showNotification('Attendance saved successfully!', 'success');
         
     } catch (error) {
         console.error('Error saving attendance:', error);
-        alert('Error saving attendance');
+        showNotification('Error saving attendance', 'error');
     }
 }
 
@@ -564,17 +841,35 @@ async function updateAttendanceSummaries(classVal, semesterVal, counts) {
             class: classVal,
             semester: semesterVal,
             totalClasses: firebase.firestore.FieldValue.increment(1),
-            present: firebase.firestore.FieldValue.increment(counts.present / counts.total || 0),
-            absent: firebase.firestore.FieldValue.increment(counts.absent / counts.total || 0),
-            late: firebase.firestore.FieldValue.increment(counts.late / counts.total || 0),
-            percentage: firebase.firestore.FieldValue.increment(0) // Calculate based on individual student
+            present: firebase.firestore.FieldValue.increment(counts.present),
+            absent: firebase.firestore.FieldValue.increment(counts.absent),
+            late: firebase.firestore.FieldValue.increment(counts.late),
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
     });
     
     await batch.commit();
+    
+    // Update percentages
+    const updateBatch = db.batch();
+    studentsSnap.forEach(doc => {
+        const summaryRef = db.collection('attendance_summary').doc(doc.id);
+        updateBatch.update(summaryRef, {
+            percentage: firebase.firestore.FieldValue.increment(0) // This will trigger a Cloud Function if you have one
+        });
+    });
+    
+    try {
+        await updateBatch.commit();
+    } catch (error) {
+        console.error('Error updating percentages:', error);
+    }
 }
 
-// Submissions Management
+// ============================================
+// SUBMISSIONS MANAGEMENT
+// ============================================
+
 async function loadSubmissions() {
     const filter = document.getElementById('filterAssignment').value;
     const grid = document.getElementById('submissionsGrid');
@@ -643,6 +938,8 @@ function createSubmissionCard(id, submission) {
 
 async function updateAssignmentFilter() {
     const select = document.getElementById('filterAssignment');
+    if (!select) return;
+    
     select.innerHTML = '<option value="">All Assignments</option>';
     
     const snapshot = await db.collection('assignments').get();
@@ -666,7 +963,7 @@ window.openGradeModal = async function(submissionId) {
     
     document.getElementById('submissionInfo').innerHTML = `
         <p><strong>Student:</strong> ${submission.studentName}</p>
-        <p><strong>Assignment:</strong> ${submission.assignmentId}</p>
+        <p><strong>Assignment ID:</strong> ${submission.assignmentId}</p>
         <p><strong>Submitted:</strong> ${submission.submittedAt?.toDate?.().toLocaleDateString()}</p>
     `;
     
@@ -689,15 +986,19 @@ window.openGradeModal = async function(submissionId) {
             
             closeModal();
             loadSubmissions();
+            showNotification('Grade saved successfully', 'success');
             
         } catch (error) {
             console.error('Error grading submission:', error);
-            alert('Error saving grade');
+            showNotification('Error saving grade', 'error');
         }
     };
 };
 
-// Reports
+// ============================================
+// REPORTS
+// ============================================
+
 window.generateReport = function(type) {
     switch(type) {
         case 'attendance':
@@ -723,6 +1024,7 @@ async function generateAttendanceReport() {
     });
     
     downloadCSV(csv, 'attendance-report.csv');
+    showNotification('Attendance report generated', 'success');
 }
 
 async function generateMarksReport() {
@@ -739,6 +1041,7 @@ async function generateMarksReport() {
     });
     
     downloadCSV(csv, 'marks-report.csv');
+    showNotification('Marks report generated', 'success');
 }
 
 async function generatePerformanceReport() {
@@ -776,6 +1079,7 @@ async function generatePerformanceReport() {
     }
     
     downloadCSV(csv, 'performance-report.csv');
+    showNotification('Performance report generated', 'success');
 }
 
 function downloadCSV(csv, filename) {
@@ -788,9 +1092,90 @@ function downloadCSV(csv, filename) {
     window.URL.revokeObjectURL(url);
 }
 
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
 // Modal helper
 function closeModal() {
     document.querySelectorAll('.modal').forEach(modal => {
         modal.style.display = 'none';
     });
 }
+
+// Show notification
+function showNotification(message, type) {
+    // Check if notification container exists
+    let container = document.getElementById('notificationContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notificationContainer';
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        `;
+        document.body.appendChild(container);
+    }
+    
+    // Create notification
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        background: ${type === 'success' ? '#4caf50' : '#f44336'};
+        color: white;
+        padding: 15px 20px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease;
+        cursor: pointer;
+    `;
+    
+    notification.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        ${message}
+    `;
+    
+    container.appendChild(notification);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            notification.remove();
+        }, 300);
+    }, 3000);
+    
+    // Remove on click
+    notification.addEventListener('click', () => {
+        notification.remove();
+    });
+}
+
+// Add animation styles
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
