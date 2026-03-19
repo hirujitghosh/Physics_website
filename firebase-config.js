@@ -18,7 +18,7 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 
 // Google Apps Script URL
-const APPS_SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxWM5idEuQgww_TvCk7sp0uhLOsttGnbPQ-mHECT-LeZVyA2HfMgRRqZYmxRiswWX_R/exec";
 
 // Collection references
 const collections = {
