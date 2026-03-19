@@ -42,34 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
 let allAssignments = [];
 let selectedFile = null;
 
-// ============================================
-// RECEIVE MESSAGE FROM IFRAME
-// ============================================
 
-function receiveMessage(event) {
-    console.log('Message from iframe:', event.data);
-    
-    try {
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        
-        if (data.success) {
-            // Show success
-            document.getElementById('submissionForm').style.display = 'none';
-            document.getElementById('submissionSuccess').style.display = 'block';
-            document.getElementById('progressBar').style.display = 'none';
-            
-            console.log('Upload successful:', data);
-        } else {
-            alert('Upload failed: ' + (data.error || 'Unknown error'));
-            
-            document.getElementById('submitBtn').disabled = false;
-            document.getElementById('submitBtn').innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
-            document.getElementById('progressBar').style.display = 'none';
-        }
-    } catch (e) {
-        console.log('Message not JSON:', event.data);
-    }
-}
 
 // ============================================
 // SETUP FILE UPLOAD
