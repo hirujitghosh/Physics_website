@@ -36,9 +36,6 @@ document.addEventListener('DOMContentLoaded', function() {
             closeModal();
         }
     });
-    
-    // Listen for iframe response
-    window.addEventListener('message', receiveMessage, false);
 });
 
 // Global variables
