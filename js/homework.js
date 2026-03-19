@@ -337,98 +337,67 @@ function validateForm() {
 
 async function handleSubmission(e) {
     e.preventDefault();
-    
+
     const studentId = document.getElementById('studentSelect').value;
     const assignmentId = document.getElementById('assignmentId').value;
     const comments = document.getElementById('comments').value;
-    
+
     if (!studentId || !selectedFile) {
         alert('Please select your name and a file');
         return;
     }
-    
-    // Show progress
+
+    const submitBtn = document.getElementById('submitBtn');
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
-    progressBar.style.display = 'block';
-    progressFill.style.width = '30%';
-    progressFill.textContent = '30%';
-    
-    const submitBtn = document.getElementById('submitBtn');
+
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Submitting...';
-    
+    submitBtn.innerHTML = 'Uploading...';
+    progressBar.style.display = 'block';
+
     try {
         // Get student info
         const studentDoc = await db.collection('students').doc(studentId).get();
         const student = studentDoc.data();
-        
-        progressFill.style.width = '50%';
-        progressFill.textContent = '50%';
-        
-        // Save to Firestore
-        const submissionData = {
-            assignmentId: assignmentId,
-            studentId: studentId,
-            studentName: student.name,
-            studentClass: student.class,
-            studentSemester: student.semester,
-            fileName: selectedFile.name,
-            fileSize: selectedFile.size,
-            comments: comments || '',
-            status: 'submitted',
-            submittedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        
-        await db.collection('submissions').add(submissionData);
-        
-        progressFill.style.width = '70%';
-        progressFill.textContent = '70%';
-        
-        // Set up the form for iframe submission
-        const form = document.getElementById('submissionForm');
-        
-        // Set form action to Apps Script
-        form.action = APPS_SCRIPT_URL;
-        form.method = 'POST';
-        form.enctype = 'multipart/form-data';
-        form.target = 'uploadTarget';
-        
-        // Add hidden fields for the data
-        let hiddenFields = {
-            'assignmentId': assignmentId,
-            'studentName': student.name,
-            'studentClass': student.class,
-            'studentSemester': student.semester,
-            'comments': comments || ''
-        };
-        
-        // Remove any existing hidden fields
-        document.querySelectorAll('.dynamic-hidden').forEach(el => el.remove());
-        
-        // Add new hidden fields
-        for (let key in hiddenFields) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = hiddenFields[key];
-            input.className = 'dynamic-hidden';
-            form.appendChild(input);
-        }
-        
-        // Submit the form
-        form.submit();
-        
-        // Show completion message (iframe will handle the response)
+
+        progressFill.style.width = '30%';
+        progressFill.textContent = 'Preparing file...';
+
+        // Convert file to Base64
+        const base64 = await toBase64(selectedFile);
+
+        progressFill.style.width = '60%';
+        progressFill.textContent = 'Uploading...';
+
+        // Send to Apps Script
+        const res = await fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                file: base64.split(',')[1], // remove prefix
+                fileName: selectedFile.name,
+                contentType: selectedFile.type,
+                assignmentId,
+                studentName: student.name,
+                studentClass: student.class,
+                studentSemester: student.semester,
+                comments: comments || ''
+            })
+        });
+
+        const result = await res.json();
+
+        if (!result.success) throw new Error(result.message);
+
         progressFill.style.width = '100%';
-        progressFill.textContent = '100%';
-        
-    } catch (error) {
-        console.error('Submission error:', error);
-        alert('Error submitting assignment: ' + error.message);
-        
+        progressFill.textContent = 'Done';
+
+        document.getElementById('submissionForm').style.display = 'none';
+        document.getElementById('submissionSuccess').style.display = 'block';
+
+    } catch (err) {
+        alert('Upload failed: ' + err.message);
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
+        submitBtn.innerHTML = 'Submit Assignment';
         progressBar.style.display = 'none';
     }
 }
@@ -436,6 +405,14 @@ async function handleSubmission(e) {
 // ============================================
 // MODAL HELPER
 // ============================================
+function toBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
 
 function resetForm() {
     document.getElementById('submissionForm').reset();
