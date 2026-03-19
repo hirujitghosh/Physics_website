@@ -1,4 +1,4 @@
-// homework.js - Fixed version using form submit to iframe
+// homework.js - Fixed version with Firebase Storage for PDF uploads
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Homework page loaded');
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // File upload handling
     setupFileUpload();
     
-    // Form submission - handle with iframe
+    // Form submission
     const submissionForm = document.getElementById('submissionForm');
     if (submissionForm) {
         submissionForm.addEventListener('submit', handleSubmission);
@@ -38,12 +38,14 @@ document.addEventListener('DOMContentLoaded', function() {
             closeModal();
         }
     });
+    
+    // Student select listener
+    document.getElementById('studentSelect')?.addEventListener('change', validateForm);
 });
 
 // Global variables
 let allAssignments = [];
 let selectedFile = null;
-let currentSubmissionData = null;
 
 // ============================================
 // SETUP FILE UPLOAD
@@ -56,14 +58,40 @@ function setupFileUpload() {
     
     if (!fileUploadArea || !fileInput) return;
     
+    // Click on area triggers file input
     fileUploadArea.addEventListener('click', () => fileInput.click());
     
+    // Drag and drop functionality
+    fileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadArea.style.background = '#e3f2fd';
+        fileUploadArea.style.borderColor = '#2980b9';
+    });
+    
+    fileUploadArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        fileUploadArea.style.background = '#f8f9fa';
+        fileUploadArea.style.borderColor = '#3498db';
+    });
+    
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.style.background = '#f8f9fa';
+        fileUploadArea.style.borderColor = '#3498db';
+        
+        if (e.dataTransfer.files.length > 0) {
+            validateAndSelectFile(e.dataTransfer.files[0]);
+        }
+    });
+    
+    // File input change
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
             validateAndSelectFile(e.target.files[0]);
         }
     });
     
+    // Remove file button
     if (removeFileBtn) {
         removeFileBtn.addEventListener('click', removeFile);
     }
@@ -163,7 +191,7 @@ function updateSemesterOptions() {
     
     if (!classFilter.value) return;
     
-    const numSemesters = classFilter.value === 'BSc' ? 8 : 2;
+    const numSemesters = classFilter.value === 'BSc' ? 6 : 2;
     for (let i = 1; i <= numSemesters; i++) {
         const option = document.createElement('option');
         option.value = i;
@@ -257,7 +285,7 @@ async function loadStudents(classVal, semesterVal) {
     try {
         const snapshot = await db.collection('students')
             .where('class', '==', classVal)
-            .where('semester', '==', semesterVal)
+            .where('semester', '==', parseInt(semesterVal))
             .orderBy('name')
             .get();
         
@@ -289,7 +317,7 @@ function validateAndSelectFile(file) {
         return;
     }
     
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
         alert('File size must be less than 10MB.');
         return;
     }
@@ -327,7 +355,7 @@ function validateForm() {
 }
 
 // ============================================
-// HANDLE SUBMISSION - FIXED FOR CORS
+// HANDLE SUBMISSION - WITH FIREBASE STORAGE
 // ============================================
 
 async function handleSubmission(e) {
@@ -342,26 +370,79 @@ async function handleSubmission(e) {
         return;
     }
     
-    // Show progress
+    // Get UI elements
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
-    progressBar.style.display = 'block';
-    progressFill.style.width = '30%';
-    progressFill.textContent = '30%';
-    
     const submitBtn = document.getElementById('submitBtn');
+    const form = document.getElementById('submissionForm');
+    const successDiv = document.getElementById('submissionSuccess');
+    
+    // Show progress
+    progressBar.style.display = 'block';
+    progressFill.style.width = '10%';
+    progressFill.textContent = '10%';
+    
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Submitting...';
     
     try {
-        // Get student info
+        // Step 1: Get student info
+        progressFill.style.width = '20%';
+        progressFill.textContent = '20%';
+        
         const studentDoc = await db.collection('students').doc(studentId).get();
+        if (!studentDoc.exists) {
+            throw new Error('Student not found');
+        }
         const student = studentDoc.data();
         
-        progressFill.style.width = '50%';
-        progressFill.textContent = '50%';
+        // Step 2: Create a unique filename
+        progressFill.style.width = '30%';
+        progressFill.textContent = '30%';
         
-        // Save to Firestore first (this works without CORS)
+        const timestamp = Date.now();
+        const safeStudentName = student.name.replace(/[^a-zA-Z0-9]/g, '_');
+        const fileName = `${safeStudentName}_${assignmentId}_${timestamp}.pdf`;
+        const storagePath = `submissions/${assignmentId}/${studentId}/${fileName}`;
+        
+        // Step 3: Upload file to Firebase Storage
+        progressFill.style.width = '40%';
+        progressFill.textContent = '40%';
+        
+        const storageRef = firebase.storage().ref();
+        const fileRef = storageRef.child(storagePath);
+        
+        // Upload with progress tracking
+        const uploadTask = fileRef.put(selectedFile);
+        
+        // Track upload progress
+        uploadTask.on('state_changed', 
+            (snapshot) => {
+                // Progress function
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                const totalProgress = 40 + (progress * 0.3); // Scale from 40% to 70%
+                progressFill.style.width = totalProgress + '%';
+                progressFill.textContent = Math.round(totalProgress) + '%';
+            },
+            (error) => {
+                // Error function
+                throw error;
+            }
+        );
+        
+        // Wait for upload to complete
+        await uploadTask;
+        
+        progressFill.style.width = '75%';
+        progressFill.textContent = '75%';
+        
+        // Step 4: Get the download URL
+        const downloadURL = await fileRef.getDownloadURL();
+        
+        progressFill.style.width = '85%';
+        progressFill.textContent = '85%';
+        
+        // Step 5: Save submission data to Firestore
         const submissionData = {
             assignmentId: assignmentId,
             studentId: studentId,
@@ -369,56 +450,90 @@ async function handleSubmission(e) {
             studentClass: student.class,
             studentSemester: student.semester,
             fileName: selectedFile.name,
+            storedFileName: fileName,
             fileSize: selectedFile.size,
+            filePath: storagePath,
+            fileURL: downloadURL,
             comments: comments || '',
             status: 'submitted',
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        // Add to Firestore
-        const docRef = await db.collection('submissions').add(submissionData);
-        
-        progressFill.style.width = '80%';
-        progressFill.textContent = '80%';
-        
-        // For now, we'll skip the Apps Script upload due to CORS
-        // In a production environment, you would need a server-side solution
+        await db.collection('submissions').add(submissionData);
         
         progressFill.style.width = '100%';
         progressFill.textContent = '100%';
         
-        // Show success
+        // Step 6: Show success message
         setTimeout(() => {
-            document.getElementById('submissionForm').style.display = 'none';
-            document.getElementById('submissionSuccess').style.display = 'block';
+            form.style.display = 'none';
+            successDiv.style.display = 'block';
             progressBar.style.display = 'none';
             
-            // Store file info for manual upload notification
-            console.log('Submission saved to database. File needs to be uploaded manually:', selectedFile.name);
+            // Clear the selected file
+            selectedFile = null;
+            
+            console.log('Submission complete! File uploaded to:', downloadURL);
         }, 500);
         
     } catch (error) {
         console.error('Submission error:', error);
-        alert('Error submitting assignment: ' + error.message);
         
+        // Show detailed error message
+        let errorMessage = 'Error submitting assignment: ';
+        if (error.code === 'storage/unauthorized') {
+            errorMessage += 'You dont have permission to upload files.';
+        } else if (error.code === 'storage/canceled') {
+            errorMessage += 'Upload was canceled.';
+        } else if (error.code === 'storage/unknown') {
+            errorMessage += 'An unknown error occurred.';
+        } else {
+            errorMessage += error.message;
+        }
+        
+        alert(errorMessage);
+        
+        // Reset button
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
         progressBar.style.display = 'none';
+        
+        // Reset progress
+        progressFill.style.width = '0%';
+        progressFill.textContent = '0%';
     }
 }
 
 // ============================================
-// MODAL HELPER
+// MODAL HELPER FUNCTIONS
 // ============================================
 
 function resetForm() {
-    document.getElementById('submissionForm').reset();
-    document.getElementById('submissionForm').style.display = 'block';
-    document.getElementById('submissionSuccess').style.display = 'none';
-    document.getElementById('fileInfo').style.display = 'none';
-    document.getElementById('fileUploadArea').style.display = 'block';
-    document.getElementById('progressBar').style.display = 'none';
-    document.getElementById('submitBtn').disabled = true;
+    const form = document.getElementById('submissionForm');
+    const successDiv = document.getElementById('submissionSuccess');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const progressBar = document.getElementById('progressBar');
+    const submitBtn = document.getElementById('submitBtn');
+    const progressFill = document.getElementById('progressFill');
+    const fileInput = document.getElementById('fileUpload');
+    
+    form.reset();
+    form.style.display = 'block';
+    successDiv.style.display = 'none';
+    fileInfo.style.display = 'none';
+    fileUploadArea.style.display = 'block';
+    progressBar.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
+    progressFill.style.width = '0%';
+    progressFill.textContent = '0%';
+    
+    // Clear file input
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    
     selectedFile = null;
 }
 
@@ -430,5 +545,20 @@ window.closeModal = function() {
     }
 }
 
-// Add student select listener
-document.getElementById('studentSelect')?.addEventListener('change', validateForm);
+// ============================================
+// CHECK SUBMISSION STATUS
+// ============================================
+
+async function checkSubmissionStatus(assignmentId, studentId) {
+    try {
+        const snapshot = await db.collection('submissions')
+            .where('assignmentId', '==', assignmentId)
+            .where('studentId', '==', studentId)
+            .get();
+        
+        return !snapshot.empty;
+    } catch (error) {
+        console.error('Error checking submission status:', error);
+        return false;
+    }
+}
