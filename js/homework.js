@@ -1,31 +1,65 @@
-// js/homework.js - Complete Homework Page Functionality
+// homework.js - Complete with PDF upload functionality
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Homework page loaded');
+    
     // Load assignments when page loads
     loadAssignments();
     
     // Setup filters
     const classFilter = document.getElementById('classFilter');
     const semesterFilter = document.getElementById('semesterFilter');
-    const statusFilter = document.getElementById('statusFilter');
     const applyFilters = document.getElementById('applyFilters');
     
     if (classFilter) {
-        classFilter.addEventListener('change', function() {
-            updateSemesterOptions();
-        });
+        classFilter.addEventListener('change', updateSemesterOptions);
     }
     
     if (applyFilters) {
         applyFilters.addEventListener('click', filterAssignments);
     }
     
-    // Handle class change in submission form
-    const studentClass = document.getElementById('studentClass');
-    if (studentClass) {
-        studentClass.addEventListener('change', function() {
-            updateStudentSemesterOptions();
+    // Handle student selection change
+    const studentSelect = document.getElementById('studentSelect');
+    if (studentSelect) {
+        studentSelect.addEventListener('change', validateForm);
+    }
+    
+    // File upload handling
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileInput = document.getElementById('fileUpload');
+    const removeFileBtn = document.getElementById('removeFile');
+    
+    if (fileUploadArea && fileInput) {
+        fileUploadArea.addEventListener('click', () => fileInput.click());
+        
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.background = '#e3f2fd';
         });
+        
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.style.background = '#f8f9fa';
+        });
+        
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.background = '#f8f9fa';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+    }
+    
+    if (removeFileBtn) {
+        removeFileBtn.addEventListener('click', removeFile);
     }
     
     // Handle submission form
@@ -50,6 +84,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // Global variables
 let allAssignments = [];
 let filteredAssignments = [];
+let selectedFile = null;
+let studentsCache = {};
 
 // ============================================
 // LOAD ASSIGNMENTS FROM FIREBASE
@@ -61,10 +97,6 @@ async function loadAssignments() {
     if (!assignmentsGrid) return;
     
     try {
-        // Get current date for comparison
-        const today = new Date();
-        
-        // Fetch assignments from Firestore
         const snapshot = await db.collection('assignments')
             .where('status', '==', 'active')
             .orderBy('deadline', 'asc')
@@ -75,11 +107,9 @@ async function loadAssignments() {
             return;
         }
         
-        // Clear loading spinner
         assignmentsGrid.innerHTML = '';
         allAssignments = [];
         
-        // Loop through each assignment
         snapshot.forEach(doc => {
             const assignment = {
                 id: doc.id,
@@ -87,20 +117,16 @@ async function loadAssignments() {
             };
             allAssignments.push(assignment);
             
-            // Create and append assignment card
             const card = createAssignmentCard(assignment);
             assignmentsGrid.appendChild(card);
         });
         
-        // Update filtered assignments
         filteredAssignments = [...allAssignments];
-        
-        // Update semester filter options
         updateSemesterOptions();
         
     } catch (error) {
         console.error('Error loading assignments:', error);
-        assignmentsGrid.innerHTML = '<p class="error">Error loading assignments. Please refresh the page.</p>';
+        assignmentsGrid.innerHTML = '<p class="error">Error loading assignments. Please refresh.</p>';
     }
 }
 
@@ -115,20 +141,13 @@ function createAssignmentCard(assignment) {
     card.dataset.class = assignment.class;
     card.dataset.semester = assignment.semester;
     
-    // Format deadline
     const deadline = assignment.deadline ? new Date(assignment.deadline) : new Date();
     const today = new Date();
     const isOverdue = deadline < today;
     
-    // Calculate days left
-    const timeDiff = deadline.getTime() - today.getTime();
-    const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
-    
-    // Format deadline display
+    const daysLeft = Math.ceil((deadline - today) / (1000 * 3600 * 24));
     const deadlineStr = deadline.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+        year: 'numeric', month: 'long', day: 'numeric'
     });
     
     card.innerHTML = `
@@ -136,26 +155,12 @@ function createAssignmentCard(assignment) {
             <h3>${assignment.title || 'Untitled Assignment'}</h3>
             <span class="class-badge">Class ${assignment.class || 'N/A'} - Sem ${assignment.semester || 'N/A'}</span>
         </div>
-        
-        <p class="assignment-description">${assignment.description || 'No description provided.'}</p>
-        
+        <p>${assignment.description || 'No description provided.'}</p>
         <div class="assignment-meta">
-            <div class="meta-item">
-                <i class="fas fa-calendar-alt"></i>
-                <span>Deadline: ${deadlineStr}</span>
-            </div>
-            <div class="meta-item">
-                <i class="fas fa-clock"></i>
-                <span class="${isOverdue ? 'overdue' : ''}">
-                    ${isOverdue ? 'Overdue' : `${daysLeft} days left`}
-                </span>
-            </div>
-            <div class="meta-item">
-                <i class="fas fa-star"></i>
-                <span>Total Marks: ${assignment.totalMarks || 'N/A'}</span>
-            </div>
+            <span><i class="fas fa-calendar-alt"></i> Deadline: ${deadlineStr}</span>
+            <span><i class="fas fa-clock"></i> ${isOverdue ? 'Overdue' : `${daysLeft} days left`}</span>
+            <span><i class="fas fa-star"></i> Marks: ${assignment.totalMarks || 'N/A'}</span>
         </div>
-        
         <div class="assignment-actions">
             <a href="${assignment.driveLink || '#'}" target="_blank" class="btn btn-secondary">
                 <i class="fas fa-download"></i> Download
@@ -179,17 +184,11 @@ function updateSemesterOptions() {
     
     if (!classFilter || !semesterFilter) return;
     
-    const selectedClass = classFilter.value;
-    
-    // Clear current options
     semesterFilter.innerHTML = '<option value="">All Semesters</option>';
     
-    if (!selectedClass) return;
+    if (!classFilter.value) return;
     
-    // Determine number of semesters
-    const numSemesters = selectedClass === 'BSc' ? 8 : 2;
-    
-    // Add semester options
+    const numSemesters = classFilter.value === 'BSc' ? 8 : 2;
     for (let i = 1; i <= numSemesters; i++) {
         const option = document.createElement('option');
         option.value = i;
@@ -198,69 +197,19 @@ function updateSemesterOptions() {
     }
 }
 
-function updateStudentSemesterOptions() {
-    const studentClass = document.getElementById('studentClass');
-    const semesterSelect = document.getElementById('studentSemester');
-    
-    if (!studentClass || !semesterSelect) return;
-    
-    const selectedClass = studentClass.value;
-    
-    // Clear current options
-    semesterSelect.innerHTML = '<option value="">Select Semester</option>';
-    
-    if (!selectedClass) return;
-    
-    // Determine number of semesters
-    const numSemesters = selectedClass === 'BSc' ? 8 : 2;
-    
-    // Add semester options
-    for (let i = 1; i <= numSemesters; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = `Semester ${i}`;
-        semesterSelect.appendChild(option);
-    }
-}
-
 function filterAssignments() {
     const classFilter = document.getElementById('classFilter')?.value;
     const semesterFilter = document.getElementById('semesterFilter')?.value;
-    const statusFilter = document.getElementById('statusFilter')?.value;
     const assignmentsGrid = document.getElementById('assignmentsGrid');
     
     if (!assignmentsGrid) return;
     
-    // Filter assignments
     filteredAssignments = allAssignments.filter(assignment => {
-        // Class filter
         if (classFilter && assignment.class !== classFilter) return false;
-        
-        // Semester filter
         if (semesterFilter && assignment.semester != semesterFilter) return false;
-        
-        // Status filter
-        if (statusFilter && statusFilter !== 'all') {
-            const deadline = new Date(assignment.deadline);
-            const today = new Date();
-            
-            switch(statusFilter) {
-                case 'pending':
-                    // Not submitted and not overdue (simplified)
-                    return deadline >= today;
-                case 'submitted':
-                    // This would require checking submissions
-                    // For now, just return false
-                    return false;
-                case 'graded':
-                    return false;
-            }
-        }
-        
         return true;
     });
     
-    // Clear and repopulate grid
     assignmentsGrid.innerHTML = '';
     
     if (filteredAssignments.length === 0) {
@@ -269,23 +218,59 @@ function filterAssignments() {
     }
     
     filteredAssignments.forEach(assignment => {
-        const card = createAssignmentCard(assignment);
-        assignmentsGrid.appendChild(card);
+        assignmentsGrid.appendChild(createAssignmentCard(assignment));
     });
+}
+
+// ============================================
+// STUDENT LOADING
+// ============================================
+
+async function loadStudentsForClass(classVal, semesterVal) {
+    const cacheKey = `${classVal}_${semesterVal}`;
+    
+    if (studentsCache[cacheKey]) {
+        return studentsCache[cacheKey];
+    }
+    
+    try {
+        const snapshot = await db.collection('students')
+            .where('class', '==', classVal)
+            .where('semester', '==', semesterVal)
+            .orderBy('name')
+            .get();
+        
+        const students = [];
+        snapshot.forEach(doc => {
+            students.push({
+                id: doc.id,
+                ...doc.data()
+            });
+        });
+        
+        studentsCache[cacheKey] = students;
+        return students;
+        
+    } catch (error) {
+        console.error('Error loading students:', error);
+        return [];
+    }
 }
 
 // ============================================
 // SUBMISSION MODAL FUNCTIONS
 // ============================================
 
-window.openSubmissionModal = function(assignmentId) {
+window.openSubmissionModal = async function(assignmentId) {
     const modal = document.getElementById('submissionModal');
     const assignment = allAssignments.find(a => a.id === assignmentId);
     
     if (!modal || !assignment) return;
     
-    // Store assignment ID
+    // Store assignment info
     document.getElementById('assignmentId').value = assignmentId;
+    document.getElementById('assignmentClass').value = assignment.class;
+    document.getElementById('assignmentSemester').value = assignment.semester;
     
     // Display assignment details
     const detailsDiv = document.getElementById('assignmentDetails');
@@ -299,87 +284,185 @@ window.openSubmissionModal = function(assignmentId) {
         <p><strong>Total Marks:</strong> ${assignment.totalMarks || 'N/A'}</p>
     `;
     
-    // Reset form
-    document.getElementById('submissionForm').reset();
-    document.getElementById('submissionForm').style.display = 'block';
-    document.getElementById('submissionSuccess').style.display = 'none';
+    // Load students for this class/semester
+    const students = await loadStudentsForClass(assignment.class, assignment.semester);
+    const studentSelect = document.getElementById('studentSelect');
     
-    // Update semester options based on default class
-    updateStudentSemesterOptions();
+    studentSelect.innerHTML = '<option value="">-- Select your name --</option>';
+    
+    if (students.length === 0) {
+        studentSelect.innerHTML = '<option value="">No students found in this class</option>';
+    } else {
+        students.forEach(student => {
+            const option = document.createElement('option');
+            option.value = student.id;
+            option.textContent = student.name;
+            studentSelect.appendChild(option);
+        });
+    }
+    
+    // Reset form
+    resetForm();
     
     // Show modal
     modal.style.display = 'block';
 }
 
+function resetForm() {
+    document.getElementById('submissionForm').reset();
+    document.getElementById('submissionForm').style.display = 'block';
+    document.getElementById('submissionSuccess').style.display = 'none';
+    document.getElementById('fileInfo').style.display = 'none';
+    document.getElementById('progressBar').style.display = 'none';
+    document.getElementById('submitBtn').disabled = true;
+    selectedFile = null;
+}
+
+function handleFileSelect(file) {
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+        alert('Please select a PDF file only.');
+        return;
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB.');
+        return;
+    }
+    
+    selectedFile = file;
+    
+    // Update UI
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileSize').textContent = formatFileSize(file.size);
+    document.getElementById('fileInfo').style.display = 'flex';
+    document.getElementById('fileUploadArea').style.display = 'none';
+    
+    validateForm();
+}
+
+function removeFile() {
+    selectedFile = null;
+    document.getElementById('fileUpload').value = '';
+    document.getElementById('fileInfo').style.display = 'none';
+    document.getElementById('fileUploadArea').style.display = 'block';
+    validateForm();
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function validateForm() {
+    const studentSelected = document.getElementById('studentSelect').value;
+    const fileSelected = selectedFile !== null;
+    const submitBtn = document.getElementById('submitBtn');
+    
+    submitBtn.disabled = !(studentSelected && fileSelected);
+}
+
+// ============================================
+// HANDLE SUBMISSION
+// ============================================
+
 async function handleSubmission(e) {
     e.preventDefault();
     
-    const submitBtn = document.getElementById('submitBtn');
     const assignmentId = document.getElementById('assignmentId').value;
-    const studentName = document.getElementById('studentName').value;
-    const studentClass = document.getElementById('studentClass').value;
-    const studentSemester = document.getElementById('studentSemester').value;
-    const driveLink = document.getElementById('driveLink').value;
+    const studentId = document.getElementById('studentSelect').value;
     const comments = document.getElementById('comments').value;
     
-    // Validate form
-    if (!studentName || !studentClass || !studentSemester || !driveLink) {
-        alert('Please fill in all required fields');
+    // Get student details
+    const studentDoc = await db.collection('students').doc(studentId).get();
+    const student = studentDoc.data();
+    
+    if (!student) {
+        alert('Student not found');
         return;
     }
     
-    // Validate Google Drive link
-    if (!driveLink.includes('drive.google.com')) {
-        alert('Please enter a valid Google Drive link');
-        return;
-    }
+    // Show progress bar
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    progressBar.style.display = 'block';
+    progressFill.style.width = '0%';
+    progressFill.textContent = '0%';
     
-    // Show loading state
+    // Disable submit button
+    const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Submitting...';
+    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Uploading...';
     
     try {
-        // Create submission object
+        // Step 1: Upload file to Google Drive via Apps Script
+        progressFill.style.width = '30%';
+        progressFill.textContent = '30%';
+        
+        const formData = new FormData();
+        formData.append('action', 'uploadAssignment');
+        formData.append('assignmentId', assignmentId);
+        formData.append('studentName', student.name);
+        formData.append('studentClass', student.class);
+        formData.append('studentSemester', student.semester);
+        formData.append('file', selectedFile);
+        formData.append('comments', comments);
+        
+        // Upload to Apps Script
+        const uploadResponse = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const uploadResult = await uploadResponse.json();
+        
+        if (!uploadResult.success) {
+            throw new Error(uploadResult.error || 'Upload failed');
+        }
+        
+        progressFill.style.width = '70%';
+        progressFill.textContent = '70%';
+        
+        // Step 2: Save to Firestore
         const submissionData = {
             assignmentId: assignmentId,
-            studentName: studentName,
-            studentClass: studentClass,
-            studentSemester: studentSemester,
-            driveLink: driveLink,
+            studentId: studentId,
+            studentName: student.name,
+            studentClass: student.class,
+            studentSemester: student.semester,
+            fileId: uploadResult.fileId,
+            fileUrl: uploadResult.fileUrl,
+            fileName: uploadResult.fileName,
+            fileSize: selectedFile.size,
             comments: comments || '',
             status: 'submitted',
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        // Save to Firebase
         await db.collection('submissions').add(submissionData);
         
-        // Show success message
-        document.getElementById('submissionForm').style.display = 'none';
-        document.getElementById('submissionSuccess').style.display = 'block';
+        progressFill.style.width = '100%';
+        progressFill.textContent = '100%';
         
-        // Optional: Send to Apps Script for backup
-        try {
-            await fetch('YOUR_APPS_SCRIPT_URL', {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'submitAssignment',
-                    ...submissionData
-                })
-            });
-        } catch (e) {
-            console.log('Apps Script backup failed (optional)');
-        }
+        // Show success message
+        setTimeout(() => {
+            document.getElementById('submissionForm').style.display = 'none';
+            document.getElementById('submissionSuccess').style.display = 'block';
+            progressBar.style.display = 'none';
+        }, 500);
         
     } catch (error) {
         console.error('Error submitting assignment:', error);
-        alert('Error submitting assignment. Please try again.');
+        alert('Error submitting assignment: ' + error.message);
+        
+        // Reset button
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
+        progressBar.style.display = 'none';
     }
 }
 
@@ -391,304 +474,9 @@ window.closeModal = function() {
     const modal = document.getElementById('submissionModal');
     if (modal) {
         modal.style.display = 'none';
+        resetForm();
     }
 }
 
-// ============================================
-// ADD THESE STYLES TO YOUR CSS IF NOT PRESENT
-// ============================================
-
-// These styles should be added to your style.css or admin.css
-const additionalStyles = `
-    .assignment-card {
-        background: white;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: transform 0.3s;
-    }
-    
-    .assignment-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-    
-    .assignment-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-    
-    .assignment-header h3 {
-        margin: 0;
-        color: #333;
-    }
-    
-    .class-badge {
-        background: #e3f2fd;
-        color: #1976d2;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    
-    .assignment-description {
-        color: #666;
-        margin-bottom: 15px;
-        line-height: 1.5;
-    }
-    
-    .assignment-meta {
-        display: flex;
-        gap: 20px;
-        margin-bottom: 15px;
-        color: #666;
-        font-size: 14px;
-        flex-wrap: wrap;
-    }
-    
-    .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    
-    .meta-item i {
-        color: #1976d2;
-    }
-    
-    .overdue {
-        color: #f44336;
-        font-weight: 600;
-    }
-    
-    .assignment-actions {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-    }
-    
-    .btn {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        text-decoration: none;
-    }
-    
-    .btn-primary {
-        background: #1976d2;
-        color: white;
-    }
-    
-    .btn-primary:hover {
-        background: #1565c0;
-    }
-    
-    .btn-secondary {
-        background: #f5f5f5;
-        color: #333;
-        border: 1px solid #ddd;
-    }
-    
-    .btn-secondary:hover {
-        background: #e0e0e0;
-    }
-    
-    .filter-section {
-        padding: 20px 0;
-        background: #f5f5f5;
-    }
-    
-    .filter-controls {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-    
-    .filter-select {
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        min-width: 150px;
-    }
-    
-    .assignments-grid {
-        padding: 20px 0;
-    }
-    
-    .loading-spinner {
-        text-align: center;
-        padding: 40px;
-        color: #666;
-    }
-    
-    .loading-spinner i {
-        font-size: 40px;
-        margin-bottom: 10px;
-        color: #1976d2;
-    }
-    
-    .no-data {
-        text-align: center;
-        padding: 40px;
-        color: #999;
-    }
-    
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        overflow-y: auto;
-    }
-    
-    .modal-content {
-        background: white;
-        margin: 50px auto;
-        padding: 20px;
-        border-radius: 8px;
-        max-width: 600px;
-        position: relative;
-    }
-    
-    .large-modal {
-        max-width: 800px;
-    }
-    
-    .close-modal {
-        position: absolute;
-        right: 20px;
-        top: 15px;
-        font-size: 24px;
-        cursor: pointer;
-        color: #999;
-    }
-    
-    .close-modal:hover {
-        color: #333;
-    }
-    
-    .assignment-details {
-        background: #f5f5f5;
-        padding: 15px;
-        border-radius: 4px;
-        margin: 15px 0;
-    }
-    
-    .submission-form {
-        margin-top: 20px;
-    }
-    
-    .form-group {
-        margin-bottom: 15px;
-    }
-    
-    .form-group label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: 500;
-    }
-    
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-        width: 100%;
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-    }
-    
-    .form-text {
-        font-size: 12px;
-        color: #666;
-        margin-top: 5px;
-        display: block;
-    }
-    
-    .drive-instructions {
-        background: #e3f2fd;
-        padding: 15px;
-        border-radius: 4px;
-        margin: 15px 0;
-    }
-    
-    .drive-instructions h4 {
-        margin-bottom: 10px;
-        color: #1976d2;
-    }
-    
-    .drive-instructions ol {
-        margin-left: 20px;
-        color: #666;
-    }
-    
-    .drive-instructions li {
-        margin: 5px 0;
-    }
-    
-    .form-actions {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-        margin-top: 20px;
-    }
-    
-    .success-message {
-        text-align: center;
-        padding: 30px;
-    }
-    
-    .success-message i {
-        font-size: 48px;
-        color: #4caf50;
-        margin-bottom: 15px;
-    }
-    
-    @media (max-width: 768px) {
-        .filter-controls {
-            flex-direction: column;
-            align-items: stretch;
-        }
-        
-        .assignment-header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        
-        .assignment-meta {
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .assignment-actions {
-            flex-direction: column;
-        }
-        
-        .modal-content {
-            margin: 20px;
-        }
-    }
-`;
-
-// Add styles if they don't exist
-if (!document.getElementById('homework-styles')) {
-    const styleSheet = document.createElement('style');
-    styleSheet.id = 'homework-styles';
-    styleSheet.textContent = additionalStyles;
-    document.head.appendChild(styleSheet);
-}
+// Add event listener for student select change
+document.getElementById('studentSelect')?.addEventListener('change', validateForm);
