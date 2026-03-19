@@ -1,14 +1,22 @@
-// admin.js - Updated with admin verification and first-time setup
+// admin.js - COMPLETE FIXED VERSION
 
 document.addEventListener('DOMContentLoaded', function() {
     // Check authentication state
     firebase.auth().onAuthStateChanged(handleAuthState);
     
     // Login form
-    document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
     
-    // Logout button
-    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+    // FIXED: Event delegation for logout button (handles dynamically created button)
+    document.addEventListener('click', function(e) {
+        if (e.target.closest && e.target.closest('#logoutBtn')) {
+            e.preventDefault();
+            handleLogout(e);
+        }
+    });
     
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -19,6 +27,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addStudentBtn').addEventListener('click', () => openStudentModal());
     document.getElementById('studentForm').addEventListener('submit', handleStudentSubmit);
     
+    // FIXED: Event listener for class change in student modal
+    const studentClassSelect = document.getElementById('studentClass');
+    if (studentClassSelect) {
+        studentClassSelect.addEventListener('change', function() {
+            updateSemesterOptions();
+        });
+    }
+    
     // Student search and filter
     document.getElementById('studentSearch').addEventListener('input', filterStudents);
     document.getElementById('filterClass').addEventListener('change', filterStudents);
@@ -26,6 +42,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Assignment modal
     document.getElementById('createAssignmentBtn').addEventListener('click', () => openAssignmentModal());
     document.getElementById('assignmentForm').addEventListener('submit', handleAssignmentSubmit);
+    
+    // FIXED: Event listener for class change in assignment modal
+    const assignmentClassSelect = document.getElementById('assignmentClass');
+    if (assignmentClassSelect) {
+        assignmentClassSelect.addEventListener('change', function() {
+            const classVal = this.value;
+            const semesterSelect = document.getElementById('assignmentSemester');
+            
+            semesterSelect.innerHTML = '';
+            
+            const semesters = classVal === 'BSc' ? 8 : 2;
+            for (let i = 1; i <= semesters; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `Semester ${i}`;
+                semesterSelect.appendChild(option);
+            }
+        });
+    }
     
     // Attendance
     document.getElementById('attendanceClass').addEventListener('change', updateAttendanceSemester);
@@ -208,7 +243,7 @@ function showSetupMessage(message, type) {
 async function handleAuthState(user) {
     const loginSection = document.getElementById('loginSection');
     const adminDashboard = document.getElementById('adminDashboard');
-    const adminEmail = document.getElementById('adminEmail');
+    const adminUserDiv = document.querySelector('.admin-user');
     
     if (user) {
         try {
@@ -219,12 +254,11 @@ async function handleAuthState(user) {
                 // User is admin - show dashboard
                 loginSection.style.display = 'none';
                 adminDashboard.style.display = 'block';
-                adminEmail.textContent = user.email;
                 
                 // Display admin name if available
                 const adminName = adminDoc.data().name;
-                if (adminName) {
-                    document.querySelector('.admin-user').innerHTML = `
+                if (adminName && adminUserDiv) {
+                    adminUserDiv.innerHTML = `
                         <span><i class="fas fa-user-shield"></i> ${adminName}</span>
                         <span style="margin: 0 10px">|</span>
                         <span id="adminEmail">${user.email}</span>
@@ -318,9 +352,35 @@ function showLoginError(message) {
     errorDiv.style.display = 'block';
 }
 
-// Logout Handler
-function handleLogout() {
-    firebase.auth().signOut();
+// FIXED: Logout Handler
+async function handleLogout(e) {
+    e.preventDefault();
+    
+    try {
+        // Show loading state on button if possible
+        const logoutBtn = e.target.closest ? e.target.closest('#logoutBtn') : e.target;
+        if (logoutBtn && logoutBtn.tagName === 'BUTTON') {
+            const originalText = logoutBtn.innerHTML;
+            logoutBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Logging out...';
+            logoutBtn.disabled = true;
+            
+            await firebase.auth().signOut();
+            
+            // Reset button (though page will change)
+            logoutBtn.innerHTML = originalText;
+            logoutBtn.disabled = false;
+        } else {
+            await firebase.auth().signOut();
+        }
+        
+        // Force redirect to login section
+        document.getElementById('loginSection').style.display = 'flex';
+        document.getElementById('adminDashboard').style.display = 'none';
+        
+    } catch (error) {
+        console.error('Logout error:', error);
+        alert('Error logging out: ' + error.message);
+    }
 }
 
 // ============================================
@@ -383,23 +443,8 @@ async function loadDashboardStats() {
 }
 
 // ============================================
-// STUDENT MANAGEMENT - COMPLETE FIXED VERSION
+// STUDENT MANAGEMENT - FIXED
 // ============================================
-
-// Make sure this is in your DOMContentLoaded
-document.addEventListener('DOMContentLoaded', function() {
-    // ... your existing event listeners ...
-    
-    // ADD THIS - Event listener for class change in student modal
-    const studentClassSelect = document.getElementById('studentClass');
-    if (studentClassSelect) {
-        studentClassSelect.addEventListener('change', function() {
-            updateSemesterOptions();
-        });
-    }
-    
-    // ... rest of your event listeners ...
-});
 
 // FIXED: openStudentModal function
 function openStudentModal(studentData = null) {
@@ -418,7 +463,7 @@ function openStudentModal(studentData = null) {
         // Update semester options based on selected class
         updateSemesterOptions();
         
-        // Small delay to ensure options are populated before setting value
+        // Set semester after options are populated
         setTimeout(() => {
             document.getElementById('studentSemester').value = studentData.semester;
         }, 50);
@@ -467,7 +512,7 @@ function updateSemesterOptions() {
     console.log(`Updated semester options for class ${selectedClass}: ${semesters} semesters`);
 }
 
-// Also fix the handleStudentSubmit function to ensure data is saved correctly
+// FIXED: handleStudentSubmit function
 async function handleStudentSubmit(e) {
     e.preventDefault();
     
@@ -475,7 +520,7 @@ async function handleStudentSubmit(e) {
     const studentData = {
         name: document.getElementById('studentName').value,
         class: document.getElementById('studentClass').value,
-        semester: document.getElementById('studentSemester').value, // This will now have a value
+        semester: document.getElementById('studentSemester').value,
         email: document.getElementById('studentEmail').value,
         phone: document.getElementById('studentPhone').value,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -508,6 +553,93 @@ async function handleStudentSubmit(e) {
         alert('Error saving student: ' + error.message);
     }
 }
+
+// FIXED: loadStudentsList function
+async function loadStudentsList() {
+    const tbody = document.getElementById('studentsList');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
+    
+    try {
+        const snapshot = await db.collection('students').orderBy('name').get();
+        
+        if (snapshot.empty) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No students found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        snapshot.forEach(doc => {
+            const student = doc.data();
+            const row = document.createElement('tr');
+            row.dataset.id = doc.id;
+            row.innerHTML = `
+                <td>${student.name}</td>
+                <td>${student.class}</td>
+                <td>${student.semester}</td>
+                <td>${student.email || '-'}</td>
+                <td>${student.phone || '-'}</td>
+                <td class="action-btns">
+                    <button class="btn-icon edit" onclick="editStudent('${doc.id}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon delete" onclick="deleteStudent('${doc.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+    } catch (error) {
+        console.error('Error loading students:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="error">Error loading students</td></tr>';
+    }
+}
+
+function filterStudents() {
+    const searchTerm = document.getElementById('studentSearch').value.toLowerCase();
+    const classFilter = document.getElementById('filterClass').value;
+    
+    const rows = document.querySelectorAll('#studentsList tr');
+    
+    rows.forEach(row => {
+        const name = row.cells[0]?.textContent.toLowerCase() || '';
+        const studentClass = row.cells[1]?.textContent || '';
+        
+        const matchesSearch = name.includes(searchTerm);
+        const matchesClass = !classFilter || studentClass === classFilter;
+        
+        row.style.display = matchesSearch && matchesClass ? '' : 'none';
+    });
+}
+
+// KEPT: Student Edit and Delete functions
+window.editStudent = async function(studentId) {
+    try {
+        const doc = await db.collection('students').doc(studentId).get();
+        if (doc.exists) {
+            openStudentModal({ id: doc.id, ...doc.data() });
+        }
+    } catch (error) {
+        console.error('Error loading student:', error);
+    }
+};
+
+// KEPT: Delete student function
+window.deleteStudent = async function(studentId) {
+    if (!confirm('Are you sure you want to delete this student? This action cannot be undone.')) return;
+    
+    try {
+        await db.collection('students').doc(studentId).delete();
+        loadStudentsList();
+        loadDashboardStats();
+        alert('Student deleted successfully');
+    } catch (error) {
+        console.error('Error deleting student:', error);
+        alert('Error deleting student: ' + error.message);
+    }
+};
+
 // ============================================
 // ASSIGNMENT MANAGEMENT
 // ============================================
@@ -567,22 +699,6 @@ function openAssignmentModal() {
     document.getElementById('assignmentForm').reset();
 }
 
-// Add event listener for class change in assignment modal
-document.getElementById('assignmentClass')?.addEventListener('change', function() {
-    const classVal = this.value;
-    const semesterSelect = document.getElementById('assignmentSemester');
-    
-    semesterSelect.innerHTML = '';
-    
-    const semesters = classVal === 'BSc' ? 8 : 2;
-    for (let i = 1; i <= semesters; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = `Semester ${i}`;
-        semesterSelect.appendChild(option);
-    }
-});
-
 async function handleAssignmentSubmit(e) {
     e.preventDefault();
     
@@ -603,10 +719,10 @@ async function handleAssignmentSubmit(e) {
         closeModal();
         loadAssignmentsList();
         loadDashboardStats();
-        showNotification('Assignment created successfully', 'success');
+        alert('Assignment created successfully');
     } catch (error) {
         console.error('Error creating assignment:', error);
-        showNotification('Error creating assignment', 'error');
+        alert('Error creating assignment: ' + error.message);
     }
 }
 
@@ -616,10 +732,10 @@ window.deleteAssignment = async function(assignmentId) {
     try {
         await db.collection('assignments').doc(assignmentId).delete();
         loadAssignmentsList();
-        showNotification('Assignment deleted successfully', 'success');
+        alert('Assignment deleted successfully');
     } catch (error) {
         console.error('Error deleting assignment:', error);
-        showNotification('Error deleting assignment', 'error');
+        alert('Error deleting assignment: ' + error.message);
     }
 };
 
@@ -776,11 +892,11 @@ async function saveAttendance() {
         // Update attendance summaries for each student
         await updateAttendanceSummaries(classVal, semesterVal, attendanceCounts);
         
-        showNotification('Attendance saved successfully!', 'success');
+        alert('Attendance saved successfully!');
         
     } catch (error) {
         console.error('Error saving attendance:', error);
-        showNotification('Error saving attendance', 'error');
+        alert('Error saving attendance: ' + error.message);
     }
 }
 
@@ -816,8 +932,12 @@ async function updateAttendanceSummaries(classVal, semesterVal, counts) {
     const updateBatch = db.batch();
     studentsSnap.forEach(doc => {
         const summaryRef = db.collection('attendance_summary').doc(doc.id);
+        const totalClasses = counts.total;
+        const present = counts.present;
+        const percentage = totalClasses > 0 ? (present / totalClasses * 100).toFixed(1) : 0;
+        
         updateBatch.update(summaryRef, {
-            percentage: firebase.firestore.FieldValue.increment(0) // This will trigger a Cloud Function if you have one
+            percentage: parseFloat(percentage)
         });
     });
     
@@ -948,11 +1068,11 @@ window.openGradeModal = async function(submissionId) {
             
             closeModal();
             loadSubmissions();
-            showNotification('Grade saved successfully', 'success');
+            alert('Grade saved successfully');
             
         } catch (error) {
             console.error('Error grading submission:', error);
-            showNotification('Error saving grade', 'error');
+            alert('Error saving grade: ' + error.message);
         }
     };
 };
@@ -986,7 +1106,7 @@ async function generateAttendanceReport() {
     });
     
     downloadCSV(csv, 'attendance-report.csv');
-    showNotification('Attendance report generated', 'success');
+    alert('Attendance report generated');
 }
 
 async function generateMarksReport() {
@@ -1003,7 +1123,7 @@ async function generateMarksReport() {
     });
     
     downloadCSV(csv, 'marks-report.csv');
-    showNotification('Marks report generated', 'success');
+    alert('Marks report generated');
 }
 
 async function generatePerformanceReport() {
@@ -1041,7 +1161,7 @@ async function generatePerformanceReport() {
     }
     
     downloadCSV(csv, 'performance-report.csv');
-    showNotification('Performance report generated', 'success');
+    alert('Performance report generated');
 }
 
 function downloadCSV(csv, filename) {
@@ -1064,80 +1184,3 @@ function closeModal() {
         modal.style.display = 'none';
     });
 }
-
-// Show notification
-function showNotification(message, type) {
-    // Check if notification container exists
-    let container = document.getElementById('notificationContainer');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'notificationContainer';
-        container.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-        `;
-        document.body.appendChild(container);
-    }
-    
-    // Create notification
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        background: ${type === 'success' ? '#4caf50' : '#f44336'};
-        color: white;
-        padding: 15px 20px;
-        margin-bottom: 10px;
-        border-radius: 4px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        animation: slideIn 0.3s ease;
-        cursor: pointer;
-    `;
-    
-    notification.innerHTML = `
-        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
-        ${message}
-    `;
-    
-    container.appendChild(notification);
-    
-    // Auto remove after 3 seconds
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    }, 3000);
-    
-    // Remove on click
-    notification.addEventListener('click', () => {
-        notification.remove();
-    });
-}
-
-// Add animation styles
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-`;
-document.head.appendChild(style);
