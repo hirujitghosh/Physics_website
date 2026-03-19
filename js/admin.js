@@ -1,4 +1,4 @@
-// admin.js - COMPLETE FIXED VERSION
+// admin.js - COMPLETE FIXED VERSION (Login + Add Student Working)
 
 document.addEventListener('DOMContentLoaded', function() {
     // Check authentication state
@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================
-// AUTHENTICATION
+// AUTHENTICATION - FIXED (Admin verification restored)
 // ============================================
 
 // Auth State Handler
@@ -139,18 +139,47 @@ async function handleAuthState(user) {
     const loginSection = document.getElementById('loginSection');
     const adminDashboard = document.getElementById('adminDashboard');
     const adminEmail = document.getElementById('adminEmail');
+    const adminUserDiv = document.querySelector('.admin-user');
+    
+    console.log('Auth State Changed:', user ? 'Logged In' : 'Logged Out');
     
     if (user) {
+        console.log('User logged in:', user.email);
+        
         try {
-            // Check if user is admin
+            // Check if user is an admin
+            console.log('Checking admin collection for UID:', user.uid);
             const adminDoc = await db.collection('admins').doc(user.uid).get();
             
+            console.log('Admin doc exists:', adminDoc.exists);
+            
             if (adminDoc.exists) {
-                // User is admin
+                console.log('Admin data:', adminDoc.data());
+                
+                // User is admin - show dashboard
                 loginSection.style.display = 'none';
                 adminDashboard.style.display = 'block';
-                if (adminEmail) {
-                    adminEmail.textContent = user.email;
+                
+                // Update admin display
+                const adminName = adminDoc.data().name;
+                if (adminUserDiv) {
+                    if (adminName) {
+                        adminUserDiv.innerHTML = `
+                            <span><i class="fas fa-user-shield"></i> ${adminName}</span>
+                            <span style="margin: 0 10px">|</span>
+                            <span id="adminEmail">${user.email}</span>
+                            <button id="logoutBtn" class="btn-logout">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </button>
+                        `;
+                    } else {
+                        adminUserDiv.innerHTML = `
+                            <span id="adminEmail">${user.email}</span>
+                            <button id="logoutBtn" class="btn-logout">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </button>
+                        `;
+                    }
                 }
                 
                 // Load dashboard data
@@ -158,18 +187,31 @@ async function handleAuthState(user) {
                 loadStudentsList();
                 loadAssignmentsList();
                 loadSubmissions();
+                
+                // Update date display
+                const dateDisplay = document.getElementById('currentDate');
+                if (dateDisplay) {
+                    dateDisplay.textContent = new Date().toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    });
+                }
             } else {
-                // Not an admin
+                // User exists but not in admins collection
+                console.log('User not authorized as admin - signing out');
                 await firebase.auth().signOut();
                 showLoginError('You are not authorized as an admin');
             }
         } catch (error) {
-            console.error('Error checking admin:', error);
+            console.error('Error checking admin status:', error);
             await firebase.auth().signOut();
             showLoginError('Error verifying admin access');
         }
     } else {
         // User is signed out
+        console.log('User signed out');
         loginSection.style.display = 'flex';
         adminDashboard.style.display = 'none';
     }
@@ -192,12 +234,27 @@ async function handleLogin(e) {
     
     try {
         await firebase.auth().signInWithEmailAndPassword(email, password);
-        if (errorDiv) errorDiv.style.display = 'none';
+        // Don't hide error here - handleAuthState will handle success/failure
     } catch (error) {
         console.error('Login error:', error);
         if (errorDiv) {
             errorDiv.style.display = 'block';
-            errorDiv.textContent = 'Invalid email or password';
+            
+            // User-friendly error messages
+            switch(error.code) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                    errorDiv.textContent = 'Invalid email or password';
+                    break;
+                case 'auth/too-many-requests':
+                    errorDiv.textContent = 'Too many attempts. Try again later';
+                    break;
+                case 'auth/network-request-failed':
+                    errorDiv.textContent = 'Network error. Check your connection';
+                    break;
+                default:
+                    errorDiv.textContent = 'Login failed: ' + error.message;
+            }
         }
     } finally {
         loginBtn.innerHTML = originalText;
@@ -282,7 +339,7 @@ async function loadDashboardStats() {
 }
 
 // ============================================
-// STUDENT MANAGEMENT - FIXED
+// STUDENT MANAGEMENT - FIXED (Add Student working)
 // ============================================
 
 async function loadStudentsList() {
@@ -369,7 +426,7 @@ function openStudentModal(studentData = null) {
         // Update semester options first
         updateSemesterOptions();
         
-        // Then set the semester value after a tiny delay to ensure options are loaded
+        // Then set the semester value after a tiny delay
         setTimeout(() => {
             const semesterSelect = document.getElementById('studentSemester');
             if (semesterSelect && studentData.semester) {
@@ -621,8 +678,392 @@ function updateAttendanceSemester() {
     }
 }
 
-// Continue with other functions (attendance, submissions, reports)...
-// [Previous functions remain the same]
+async function loadAttendanceStudents() {
+    const classVal = document.getElementById('attendanceClass')?.value;
+    const semesterVal = document.getElementById('attendanceSemester')?.value;
+    const date = document.getElementById('attendanceDate')?.value;
+    
+    if (!classVal || !semesterVal || !date) {
+        alert('Please select class, semester, and date');
+        return;
+    }
+    
+    const tbody = document.getElementById('attendanceList');
+    const container = document.getElementById('attendanceTableContainer');
+    
+    if (!tbody || !container) return;
+    
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center">Loading...</td></tr>';
+    container.style.display = 'block';
+    
+    try {
+        // Load students
+        const studentsSnap = await db.collection('students')
+            .where('class', '==', classVal)
+            .where('semester', '==', semesterVal)
+            .get();
+        
+        if (studentsSnap.empty) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center">No students found</td></tr>';
+            return;
+        }
+        
+        // Load existing attendance for this date
+        const attendanceSnap = await db.collection('attendance')
+            .where('date', '==', date)
+            .where('class', '==', classVal)
+            .where('semester', '==', semesterVal)
+            .get();
+        
+        const attendanceMap = new Map();
+        attendanceSnap.forEach(doc => {
+            const data = doc.data();
+            attendanceMap.set(data.studentName, data.status);
+        });
+        
+        tbody.innerHTML = '';
+        studentsSnap.forEach(doc => {
+            const student = doc.data();
+            const existingStatus = attendanceMap.get(student.name) || 'present';
+            
+            const row = document.createElement('tr');
+            row.dataset.studentName = student.name;
+            row.innerHTML = `
+                <td>${student.name}</td>
+                <td>
+                    <select class="attendance-status" data-student="${student.name}">
+                        <option value="present" ${existingStatus === 'present' ? 'selected' : ''}>Present</option>
+                        <option value="absent" ${existingStatus === 'absent' ? 'selected' : ''}>Absent</option>
+                        <option value="late" ${existingStatus === 'late' ? 'selected' : ''}>Late</option>
+                    </select>
+                </td>
+                <td>
+                    <button class="btn-icon" onclick="markSingleAttendance(this, 'present')">
+                        <i class="fas fa-check-circle"></i>
+                    </button>
+                    <button class="btn-icon" onclick="markSingleAttendance(this, 'absent')">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+    } catch (error) {
+        console.error('Error loading attendance students:', error);
+        tbody.innerHTML = '<tr><td colspan="3" class="error">Error loading students</td></tr>';
+    }
+}
+
+window.markSingleAttendance = function(btn, status) {
+    const row = btn.closest('tr');
+    const select = row.querySelector('.attendance-status');
+    if (select) select.value = status;
+};
+
+function markAllPresent() {
+    document.querySelectorAll('.attendance-status').forEach(select => {
+        select.value = 'present';
+    });
+}
+
+async function saveAttendance() {
+    const classVal = document.getElementById('attendanceClass')?.value;
+    const semesterVal = document.getElementById('attendanceSemester')?.value;
+    const date = document.getElementById('attendanceDate')?.value;
+    
+    if (!classVal || !semesterVal || !date) {
+        alert('Please select class, semester, and date');
+        return;
+    }
+    
+    const batch = db.batch();
+    const rows = document.querySelectorAll('#attendanceList tr');
+    
+    if (rows.length === 0) {
+        alert('No students to mark attendance for');
+        return;
+    }
+    
+    // Track attendance counts for summary
+    const attendanceCounts = {
+        present: 0,
+        absent: 0,
+        late: 0,
+        total: rows.length
+    };
+    
+    rows.forEach(row => {
+        const studentName = row.dataset.studentName;
+        const status = row.querySelector('.attendance-status')?.value || 'present';
+        
+        // Update counts
+        attendanceCounts[status]++;
+        
+        // Create attendance record
+        const attendanceRef = db.collection('attendance').doc();
+        batch.set(attendanceRef, {
+            date: date,
+            class: classVal,
+            semester: semesterVal,
+            studentName: studentName,
+            status: status,
+            markedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    });
+    
+    try {
+        await batch.commit();
+        alert('Attendance saved successfully!');
+        
+    } catch (error) {
+        console.error('Error saving attendance:', error);
+        alert('Error saving attendance: ' + error.message);
+    }
+}
+
+// ============================================
+// SUBMISSIONS MANAGEMENT
+// ============================================
+
+async function loadSubmissions() {
+    const filter = document.getElementById('filterAssignment')?.value;
+    const grid = document.getElementById('submissionsGrid');
+    
+    if (!grid) return;
+    
+    grid.innerHTML = '<div class="loading-spinner"><i class="fas fa-circle-notch fa-spin"></i></div>';
+    
+    try {
+        let query = db.collection('submissions').orderBy('submittedAt', 'desc');
+        
+        if (filter) {
+            query = query.where('assignmentId', '==', filter);
+        }
+        
+        const snapshot = await query.get();
+        
+        if (snapshot.empty) {
+            grid.innerHTML = '<p class="no-data">No submissions found</p>';
+            return;
+        }
+        
+        grid.innerHTML = '';
+        snapshot.forEach(doc => {
+            const submission = doc.data();
+            const card = createSubmissionCard(doc.id, submission);
+            grid.appendChild(card);
+        });
+        
+    } catch (error) {
+        console.error('Error loading submissions:', error);
+        grid.innerHTML = '<p class="error">Error loading submissions</p>';
+    }
+}
+
+function createSubmissionCard(id, submission) {
+    const card = document.createElement('div');
+    card.className = 'submission-card';
+    card.dataset.id = id;
+    
+    const submittedDate = submission.submittedAt?.toDate?.() || new Date();
+    
+    card.innerHTML = `
+        <div class="submission-header">
+            <h3>${submission.studentName || ''}</h3>
+            <span class="status-badge ${submission.status || ''}">${submission.status || 'submitted'}</span>
+        </div>
+        
+        <div class="submission-details">
+            <p><i class="fas fa-book"></i> Assignment: ${submission.assignmentId || ''}</p>
+            <p><i class="fas fa-calendar"></i> Submitted: ${submittedDate.toLocaleDateString()}</p>
+            <p><i class="fas fa-star"></i> Marks: ${submission.marks || 'Not graded'}</p>
+        </div>
+        
+        <a href="${submission.driveLink || '#'}" target="_blank" class="submission-link">
+            <i class="fab fa-google-drive"></i> View Submission
+        </a>
+        
+        <div class="submission-actions">
+            <button class="btn btn-primary btn-sm" onclick="openGradeModal('${id}')">
+                <i class="fas fa-star"></i> Grade
+            </button>
+        </div>
+    `;
+    
+    return card;
+}
+
+async function updateAssignmentFilter() {
+    const select = document.getElementById('filterAssignment');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">All Assignments</option>';
+    
+    const snapshot = await db.collection('assignments').get();
+    snapshot.forEach(doc => {
+        const assignment = doc.data();
+        select.innerHTML += `<option value="${doc.id}">${assignment.title || ''}</option>`;
+    });
+}
+
+window.openGradeModal = async function(submissionId) {
+    const modal = document.getElementById('gradeModal');
+    const doc = await db.collection('submissions').doc(submissionId).get();
+    
+    if (!doc.exists) return;
+    
+    const submission = doc.data();
+    
+    document.getElementById('gradeSubmissionId').value = submissionId;
+    document.getElementById('obtainedMarks').value = submission.marks || '';
+    document.getElementById('gradeFeedback').value = submission.feedback || '';
+    
+    document.getElementById('submissionInfo').innerHTML = `
+        <p><strong>Student:</strong> ${submission.studentName || ''}</p>
+        <p><strong>Assignment:</strong> ${submission.assignmentId || ''}</p>
+        <p><strong>Submitted:</strong> ${submission.submittedAt?.toDate?.().toLocaleDateString() || ''}</p>
+    `;
+    
+    modal.style.display = 'block';
+    
+    // Setup grade form
+    document.getElementById('gradeForm').onsubmit = async function(e) {
+        e.preventDefault();
+        
+        const marks = parseFloat(document.getElementById('obtainedMarks').value);
+        const feedback = document.getElementById('gradeFeedback').value;
+        
+        try {
+            await db.collection('submissions').doc(submissionId).update({
+                marks: marks,
+                feedback: feedback,
+                status: 'graded',
+                gradedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            closeModal();
+            loadSubmissions();
+            alert('Grade saved successfully');
+            
+        } catch (error) {
+            console.error('Error grading submission:', error);
+            alert('Error saving grade: ' + error.message);
+        }
+    };
+};
+
+// ============================================
+// REPORTS
+// ============================================
+
+window.generateReport = function(type) {
+    switch(type) {
+        case 'attendance':
+            generateAttendanceReport();
+            break;
+        case 'marks':
+            generateMarksReport();
+            break;
+        case 'performance':
+            generatePerformanceReport();
+            break;
+    }
+};
+
+async function generateAttendanceReport() {
+    try {
+        const snapshot = await db.collection('attendance_summary').get();
+        
+        let csv = 'Student Name,Class,Semester,Total Classes,Present,Absent,Late,Percentage\n';
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            csv += `${data.studentName || ''},${data.class || ''},${data.semester || ''},${data.totalClasses || 0},${data.present || 0},${data.absent || 0},${data.late || 0},${data.percentage || 0}%\n`;
+        });
+        
+        downloadCSV(csv, 'attendance-report.csv');
+        alert('Attendance report generated');
+    } catch (error) {
+        console.error('Error generating report:', error);
+        alert('Error generating report');
+    }
+}
+
+async function generateMarksReport() {
+    try {
+        const snapshot = await db.collection('submissions')
+            .where('status', '==', 'graded')
+            .get();
+        
+        let csv = 'Student Name,Assignment ID,Marks,Feedback,Submitted Date\n';
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const date = data.submittedAt?.toDate?.().toLocaleDateString() || '';
+            csv += `${data.studentName || ''},${data.assignmentId || ''},${data.marks || ''},${data.feedback || ''},${date}\n`;
+        });
+        
+        downloadCSV(csv, 'marks-report.csv');
+        alert('Marks report generated');
+    } catch (error) {
+        console.error('Error generating report:', error);
+        alert('Error generating report');
+    }
+}
+
+async function generatePerformanceReport() {
+    try {
+        // Get all students
+        const studentsSnap = await db.collection('students').get();
+        
+        let csv = 'Student Name,Class,Semester,Attendance %,Assignments Submitted,Average Marks\n';
+        
+        for (const doc of studentsSnap.docs) {
+            const student = doc.data();
+            
+            // Get attendance
+            const attendanceDoc = await db.collection('attendance_summary').doc(doc.id).get();
+            const attendance = attendanceDoc.exists ? attendanceDoc.data().percentage || 0 : 0;
+            
+            // Get submissions
+            const submissionsSnap = await db.collection('submissions')
+                .where('studentName', '==', student.name)
+                .where('status', '==', 'graded')
+                .get();
+            
+            const submissionsCount = submissionsSnap.size;
+            
+            // Calculate average marks
+            let avgMarks = 0;
+            if (submissionsCount > 0) {
+                let totalMarks = 0;
+                submissionsSnap.forEach(sub => {
+                    totalMarks += sub.data().marks || 0;
+                });
+                avgMarks = (totalMarks / submissionsCount).toFixed(1);
+            }
+            
+            csv += `${student.name || ''},${student.class || ''},${student.semester || ''},${attendance}%,${submissionsCount},${avgMarks}\n`;
+        }
+        
+        downloadCSV(csv, 'performance-report.csv');
+        alert('Performance report generated');
+    } catch (error) {
+        console.error('Error generating report:', error);
+        alert('Error generating report');
+    }
+}
+
+function downloadCSV(csv, filename) {
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
 
 // ============================================
 // UTILITY FUNCTIONS
