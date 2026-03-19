@@ -1,3 +1,5 @@
+/* style.css - Complete Styles for Physics Learning Portal */
+
 * {
     margin: 0;
     padding: 0;
@@ -8,20 +10,33 @@
     --primary-color: #2c3e50;
     --secondary-color: #3498db;
     --accent-color: #e74c3c;
+    --success-color: #27ae60;
+    --warning-color: #f39c12;
     --light-bg: #f8f9fa;
     --dark-text: #333;
     --light-text: #fff;
+    --border-color: #e0e0e0;
     --border-radius: 8px;
     --box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    --transition: all 0.3s ease;
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
     color: var(--dark-text);
+    background: var(--light-bg);
 }
 
-/* Navigation */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
 .navbar {
     background: var(--primary-color);
     color: var(--light-text);
@@ -63,7 +78,7 @@ body {
     text-decoration: none;
     padding: 0.5rem 1rem;
     border-radius: var(--border-radius);
-    transition: background 0.3s;
+    transition: var(--transition);
 }
 
 .nav-menu a:hover,
@@ -89,7 +104,9 @@ body {
     transition: 0.3s;
 }
 
-/* Hero Section */
+/* ============================================
+   HERO SECTION
+   ============================================ */
 .hero {
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     color: var(--light-text);
@@ -114,11 +131,14 @@ body {
 }
 
 .btn {
+    display: inline-block;
     padding: 0.8rem 2rem;
     border-radius: var(--border-radius);
     text-decoration: none;
     font-weight: bold;
-    transition: transform 0.3s, box-shadow 0.3s;
+    transition: var(--transition);
+    border: none;
+    cursor: pointer;
 }
 
 .btn:hover {
@@ -127,8 +147,12 @@ body {
 }
 
 .btn-primary {
-    background: var(--accent-color);
+    background: var(--secondary-color);
     color: var(--light-text);
+}
+
+.btn-primary:hover {
+    background: #2980b9;
 }
 
 .btn-secondary {
@@ -137,7 +161,13 @@ body {
     border: 2px solid var(--light-text);
 }
 
-/* Class Cards */
+.btn-secondary:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+/* ============================================
+   CLASS CARDS (HOME PAGE)
+   ============================================ */
 .classes-section {
     max-width: 1200px;
     margin: 4rem auto;
@@ -158,15 +188,16 @@ body {
 }
 
 .class-card {
-    background: var(--light-bg);
+    background: white;
     border-radius: var(--border-radius);
     padding: 2rem;
     box-shadow: var(--box-shadow);
-    transition: transform 0.3s;
+    transition: var(--transition);
 }
 
 .class-card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
 }
 
 .class-header {
@@ -203,14 +234,16 @@ body {
     text-align: center;
     border-radius: var(--border-radius);
     font-size: 0.9rem;
-    transition: background 0.3s;
+    transition: var(--transition);
 }
 
 .semester-btn:hover {
     background: var(--primary-color);
 }
 
-/* Steps Section */
+/* ============================================
+   STEPS SECTION
+   ============================================ */
 .how-it-works {
     background: var(--light-bg);
     padding: 4rem 2rem;
@@ -262,7 +295,9 @@ body {
     margin: 1rem 0;
 }
 
-/* Stats Section */
+/* ============================================
+   STATS SECTION
+   ============================================ */
 .stats-section {
     background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
     color: white;
@@ -289,7 +324,9 @@ body {
     opacity: 0.9;
 }
 
-/* Feedback Section */
+/* ============================================
+   FEEDBACK SECTION
+   ============================================ */
 .feedback-section {
     max-width: 600px;
     margin: 4rem auto;
@@ -303,7 +340,7 @@ body {
 }
 
 .feedback-form-container {
-    background: var(--light-bg);
+    background: white;
     padding: 2rem;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
@@ -311,6 +348,13 @@ body {
 
 .form-group {
     margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #555;
+    font-weight: 500;
 }
 
 .form-group input,
@@ -321,6 +365,15 @@ body {
     border: 1px solid #ddd;
     border-radius: var(--border-radius);
     font-family: inherit;
+    font-size: 1rem;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
 }
 
 .rating-group {
@@ -341,108 +394,448 @@ body {
     color: #f1c40f;
 }
 
-/* Footer */
-.footer {
-    background: var(--primary-color);
+/* ============================================
+   PAGE HEADER (for all pages)
+   ============================================ */
+.page-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     color: var(--light-text);
-    padding: 3rem 2rem 1rem;
+    text-align: center;
+    padding: 3rem 1rem;
 }
 
-.footer-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
-    margin-bottom: 2rem;
-}
-
-.footer-section h4 {
-    margin-bottom: 1rem;
-}
-
-.footer-section ul {
-    list-style: none;
-}
-
-.footer-section ul li {
+.page-header h1 {
+    font-size: 2.5rem;
     margin-bottom: 0.5rem;
 }
 
-.footer-section a {
-    color: var(--light-text);
-    text-decoration: none;
-    opacity: 0.8;
-    transition: opacity 0.3s;
+.page-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
 }
 
-.footer-section a:hover {
-    opacity: 1;
+/* ============================================
+   SEARCH SECTION (semester page)
+   ============================================ */
+.search-section {
+    padding: 2rem 0;
 }
 
-.footer-bottom {
+.search-box {
+    max-width: 500px;
+    margin: 0 auto 1rem;
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 0.5rem 1rem;
+    box-shadow: var(--box-shadow);
+}
+
+.search-box i {
+    color: #999;
+    margin-right: 0.5rem;
+}
+
+.search-box input {
+    flex: 1;
+    border: none;
+    padding: 0.5rem;
+    font-size: 1rem;
+}
+
+.search-box input:focus {
+    outline: none;
+}
+
+.student-stats {
     text-align: center;
-    padding-top: 2rem;
-    border-top: 1px solid rgba(255,255,255,0.1);
+    color: #666;
+    font-size: 1.1rem;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .hamburger {
-        display: flex;
-    }
+.student-stats i {
+    color: var(--secondary-color);
+    margin-right: 0.5rem;
+}
 
-    .nav-menu {
-        display: none;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: var(--primary-color);
-        flex-direction: column;
-        padding: 1rem;
-        gap: 0.5rem;
-    }
+/* ============================================
+   STUDENTS GRID (semester page)
+   ============================================ */
+.students-section {
+    padding: 2rem 0;
+}
 
-    .nav-menu.active {
-        display: flex;
-    }
+.students-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
 
-    .hero h1 {
-        font-size: 2rem;
-    }
+.student-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+}
 
-    .hero p {
-        font-size: 1rem;
-    }
+.student-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
 
-    .class-grid {
-        grid-template-columns: 1fr;
-    }
+.student-avatar {
+    width: 100px;
+    height: 100px;
+    background: var(--secondary-color);
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+    font-weight: bold;
+}
 
-    .semester-list.grid-4 {
-        grid-template-columns: repeat(2, 1fr);
-    }
+.student-card h3 {
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
 
-    .stats-container {
-        grid-template-columns: repeat(2, 1fr);
-    }
+.student-details {
+    margin-bottom: 1rem;
+}
 
-    .rating-group {
-        flex-direction: column;
-        align-items: flex-start;
+.student-details span {
+    display: block;
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0.25rem 0;
+}
+
+.student-details i {
+    width: 20px;
+    color: var(--secondary-color);
+    margin-right: 0.25rem;
+}
+
+.btn-view {
+    background: var(--secondary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-view:hover {
+    background: var(--primary-color);
+}
+
+/* ============================================
+   LOADING SPINNER
+   ============================================ */
+.loading-spinner {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem;
+    color: #666;
+}
+
+.loading-spinner i {
+    font-size: 3rem;
+    color: var(--secondary-color);
+    margin-bottom: 1rem;
+}
+
+/* ============================================
+   NO STUDENTS MESSAGE
+   ============================================ */
+.no-students {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem;
+    color: #666;
+}
+
+.no-students i {
+    font-size: 4rem;
+    color: #ccc;
+    margin-bottom: 1rem;
+}
+
+.no-students h3 {
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.no-students p {
+    margin-bottom: 1.5rem;
+}
+
+/* ============================================
+   QUICK ACTIONS (semester page)
+   ============================================ */
+.quick-actions {
+    padding: 3rem 0;
+    background: white;
+}
+
+.quick-actions h2 {
+    text-align: center;
+    color: var(--primary-color);
+    margin-bottom: 2rem;
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+}
+
+.action-card {
+    background: var(--light-bg);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+    text-decoration: none;
+    color: var(--dark-text);
+    transition: var(--transition);
+    display: block;
+}
+
+.action-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--box-shadow);
+}
+
+.action-card i {
+    font-size: 2.5rem;
+    color: var(--secondary-color);
+    margin-bottom: 1rem;
+}
+
+.action-card h3 {
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.action-card p {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* ============================================
+   MODAL
+   ============================================ */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    overflow-y: auto;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 50px auto;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    max-width: 600px;
+    position: relative;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
     }
 }
 
-@media (max-width: 480px) {
-    .hero-buttons {
-        flex-direction: column;
-    }
+.close-modal {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #999;
+    transition: var(--transition);
+}
 
-    .stats-container {
-        grid-template-columns: 1fr;
-    }
-/* Student Dashboard Styles */
+.close-modal:hover {
+    color: var(--accent-color);
+}
+
+/* ============================================
+   STUDENT DASHBOARD (IN MODAL)
+   ============================================ */
+.student-dashboard {
+    padding: 1rem;
+}
+
+.dashboard-header {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.dashboard-header h2 {
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+}
+
+.dashboard-header p {
+    color: #666;
+}
+
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.stat-item {
+    background: var(--light-bg);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stat-item i {
+    font-size: 1.5rem;
+    color: var(--secondary-color);
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.recent-submissions,
+.attendance-detail {
+    margin: 2rem 0;
+}
+
+.recent-submissions h3,
+.attendance-detail h3 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.submission-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.submission-item:last-child {
+    border-bottom: none;
+}
+
+.submission-info {
+    flex: 1;
+}
+
+.assignment-id {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.submission-date {
+    font-size: 0.8rem;
+    color: #999;
+}
+
+.submission-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.submission-status.graded {
+    background: #d4edda;
+    color: #155724;
+}
+
+.submission-status.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.attendance-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.detail-item {
+    background: var(--light-bg);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+}
+
+.detail-item .label {
+    display: block;
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+}
+
+.detail-item .value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.detail-item .value.present {
+    color: #27ae60;
+}
+
+.detail-item .value.absent {
+    color: #e74c3c;
+}
+
+.detail-item .value.late {
+    color: #f39c12;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 2rem;
+}
+
+/* ============================================
+   STUDENT DASHBOARD PAGE
+   ============================================ */
 .student-header {
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     color: white;
@@ -537,31 +930,16 @@ body {
     flex: 1;
 }
 
-.detail-item {
+.attendance-details .detail-item {
     display: flex;
     justify-content: space-between;
     padding: 0.5rem 0;
     border-bottom: 1px solid #eee;
+    background: none;
 }
 
-.detail-item:last-child {
+.attendance-details .detail-item:last-child {
     border-bottom: none;
-}
-
-.detail-item .label {
-    color: #666;
-}
-
-.detail-item .value {
-    font-weight: bold;
-}
-
-.detail-item .value.present {
-    color: #27ae60;
-}
-
-.detail-item .value.absent {
-    color: #e74c3c;
 }
 
 .activity-list {
@@ -629,25 +1007,25 @@ body {
     color: #155724;
 }
 
-.assignment-item {
+.assignment-list .assignment-item {
     padding: 1rem;
     border: 1px solid #eee;
     border-radius: var(--border-radius);
     margin-bottom: 1rem;
 }
 
-.assignment-item:last-child {
+.assignment-list .assignment-item:last-child {
     margin-bottom: 0;
 }
 
-.assignment-header {
+.assignment-list .assignment-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 0.5rem;
 }
 
-.assignment-header h4 {
+.assignment-list .assignment-header h4 {
     margin: 0;
     color: var(--primary-color);
 }
@@ -686,7 +1064,7 @@ body {
     text-decoration: none;
     border-radius: 4px;
     font-size: 0.85rem;
-    transition: background 0.3s;
+    transition: var(--transition);
 }
 
 .btn-submit:hover {
@@ -703,7 +1081,7 @@ body {
     text-decoration: none;
 }
 
-.graded-item {
+.graded-list .graded-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -711,7 +1089,7 @@ body {
     border-bottom: 1px solid #f0f0f0;
 }
 
-.graded-item:last-child {
+.graded-list .graded-item:last-child {
     border-bottom: none;
 }
 
@@ -749,8 +1127,108 @@ body {
     padding: 2rem;
 }
 
-/* Responsive */
+/* ============================================
+   FOOTER
+   ============================================ */
+.footer {
+    background: var(--primary-color);
+    color: var(--light-text);
+    padding: 3rem 2rem 1rem;
+    margin-top: 4rem;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.footer-section h4 {
+    margin-bottom: 1rem;
+}
+
+.footer-section ul {
+    list-style: none;
+}
+
+.footer-section ul li {
+    margin-bottom: 0.5rem;
+}
+
+.footer-section a {
+    color: var(--light-text);
+    text-decoration: none;
+    opacity: 0.8;
+    transition: var(--transition);
+}
+
+.footer-section a:hover {
+    opacity: 1;
+}
+
+.footer-bottom {
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
 @media (max-width: 768px) {
+    .hamburger {
+        display: flex;
+    }
+
+    .nav-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--primary-color);
+        flex-direction: column;
+        padding: 1rem;
+        gap: 0.5rem;
+    }
+
+    .nav-menu.active {
+        display: flex;
+    }
+
+    .hero h1 {
+        font-size: 2rem;
+    }
+
+    .hero p {
+        font-size: 1rem;
+    }
+
+    .hero-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .class-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .semester-list.grid-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .stats-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .rating-group {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .dashboard-grid {
         grid-template-columns: 1fr;
     }
@@ -769,9 +1247,25 @@ body {
         align-items: flex-start;
         gap: 0.5rem;
     }
+
+    .students-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+
+    .actions-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 480px) {
+    .hero-buttons {
+        flex-direction: column;
+    }
+
+    .stats-container {
+        grid-template-columns: 1fr;
+    }
+
     .student-avatar {
         width: 80px;
         height: 80px;
@@ -787,7 +1281,20 @@ body {
         width: 60px;
         height: 60px;
     }
-}
+
+    .modal-content {
+        margin: 20px;
+        padding: 1.5rem;
+    }
+
+    .dashboard-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .attendance-grid {
+        grid-template-columns: 1fr;
+    }
+
     .footer-content {
         grid-template-columns: 1fr;
     }
