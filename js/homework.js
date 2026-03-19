@@ -1,4 +1,4 @@
-// homework.js - Fixed version with Apps Script upload
+// homework.js - COMPLETE WORKING VERSION with Apps Script upload
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Homework page loaded');
@@ -350,7 +350,7 @@ async function handleSubmission(e) {
     
     const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Submitting...';
+    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Uploading...';
     
     try {
         // Get student info
@@ -369,25 +369,40 @@ async function handleSubmission(e) {
         formData.append('comments', comments || '');
         formData.append('file', selectedFile);
         
+        // Log what we're sending
+        console.log('Sending to Apps Script:');
+        console.log('Student:', student.name);
+        console.log('File:', selectedFile.name);
+        console.log('File size:', selectedFile.size);
+        
         progressFill.style.width = '30%';
         progressFill.textContent = '30%';
         
-        // Upload to Apps Script
-        console.log('Uploading to Apps Script:', APPS_SCRIPT_URL);
-        
+        // Send to Apps Script
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            body: formData,
-            mode: 'no-cors' // This is important for CORS
+            body: formData
         });
         
         progressFill.style.width = '60%';
         progressFill.textContent = '60%';
         
-        // Note: With 'no-cors' we can't read the response
-        console.log('Upload sent to Apps Script');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
-        // Save to Firestore as backup
+        // Get the response
+        const result = await response.json();
+        console.log('Apps Script response:', result);
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Upload failed');
+        }
+        
+        progressFill.style.width = '80%';
+        progressFill.textContent = '80%';
+        
+        // Save to Firestore
         const submissionData = {
             assignmentId: assignmentId,
             studentId: studentId,
@@ -396,6 +411,8 @@ async function handleSubmission(e) {
             studentSemester: student.semester,
             fileName: selectedFile.name,
             fileSize: selectedFile.size,
+            fileUrl: result.fileUrl || '',
+            fileId: result.fileId || '',
             comments: comments || '',
             status: 'submitted',
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
