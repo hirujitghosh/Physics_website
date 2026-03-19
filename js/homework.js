@@ -1,4 +1,4 @@
-// homework.js - Fixed version with Firebase Storage for PDF uploads
+// homework.js - Fixed version with Google Drive upload via Apps Script
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Homework page loaded');
@@ -40,12 +40,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Student select listener
-    document.getElementById('studentSelect')?.addEventListener('change', validateForm);
+    const studentSelect = document.getElementById('studentSelect');
+    if (studentSelect) {
+        studentSelect.addEventListener('change', validateForm);
+    }
 });
 
 // Global variables
 let allAssignments = [];
 let selectedFile = null;
+
+// Google Apps Script URL - UPDATE THIS WITH YOUR DEPLOYED URL
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxWM5idEuQgww_TvCk7sp0uhLOsttGnbPQ-mHECT-LeZVyA2HfMgRRqZYmxRiswWX_R/exec";
 
 // ============================================
 // SETUP FILE UPLOAD
@@ -254,14 +260,22 @@ window.openSubmissionModal = async function(assignmentId) {
     studentSelect.innerHTML = '<option value="">Loading students...</option>';
     studentSelect.disabled = true;
     
-    const students = await loadStudents(assignment.class, assignment.semester);
+    // Convert semester to number for comparison
+    const classVal = assignment.class;
+    const semesterVal = parseInt(assignment.semester);
+    
+    console.log(`Loading students for class: ${classVal}, semester: ${semesterVal}`);
+    
+    const students = await loadStudents(classVal, semesterVal);
     
     studentSelect.innerHTML = '<option value="">-- Select your name --</option>';
     studentSelect.disabled = false;
     
     if (students.length === 0) {
-        studentSelect.innerHTML = '<option value="">No students found</option>';
+        studentSelect.innerHTML = '<option value="">No students found for this class/semester</option>';
+        console.log('No students found');
     } else {
+        console.log(`Found ${students.length} students`);
         students.forEach(s => {
             const option = document.createElement('option');
             option.value = s.id;
@@ -283,19 +297,29 @@ async function loadStudents(classVal, semesterVal) {
     console.log(`Loading students for class ${classVal}, sem ${semesterVal}`);
     
     try {
+        // Convert semesterVal to number if it's a string
+        const semNumber = typeof semesterVal === 'string' ? parseInt(semesterVal) : semesterVal;
+        
+        console.log('Query parameters:', {
+            class: classVal,
+            semester: semNumber,
+            classType: typeof classVal,
+            semesterType: typeof semNumber
+        });
+        
         const snapshot = await db.collection('students')
             .where('class', '==', classVal)
-            .where('semester', '==', parseInt(semesterVal))
+            .where('semester', '==', semNumber)
             .orderBy('name')
             .get();
         
-        console.log(`Found ${snapshot.size} students`);
+        console.log(`Query returned ${snapshot.size} students`);
         
         const students = [];
         snapshot.forEach(doc => {
             students.push({
                 id: doc.id,
-                name: doc.data().name
+                name: doc.data().name || 'Unknown'
             });
         });
         
@@ -303,6 +327,11 @@ async function loadStudents(classVal, semesterVal) {
         
     } catch (error) {
         console.error('Error loading students:', error);
+        
+        if (error.code === 'failed-precondition') {
+            alert('Please create the required index in Firebase Console. Check console for details.');
+        }
+        
         return [];
     }
 }
@@ -355,7 +384,7 @@ function validateForm() {
 }
 
 // ============================================
-// HANDLE SUBMISSION - WITH FIREBASE STORAGE
+// HANDLE SUBMISSION - WITH GOOGLE DRIVE UPLOAD
 // ============================================
 
 async function handleSubmission(e) {
@@ -390,57 +419,60 @@ async function handleSubmission(e) {
         progressFill.style.width = '20%';
         progressFill.textContent = '20%';
         
+        console.log('Fetching student with ID:', studentId);
         const studentDoc = await db.collection('students').doc(studentId).get();
-        if (!studentDoc.exists) {
-            throw new Error('Student not found');
-        }
-        const student = studentDoc.data();
         
-        // Step 2: Create a unique filename
+        if (!studentDoc.exists) {
+            throw new Error('Student not found with ID: ' + studentId);
+        }
+        
+        const student = studentDoc.data();
+        console.log('Student found:', student);
+        
+        // Step 2: Convert file to base64 for Apps Script
         progressFill.style.width = '30%';
         progressFill.textContent = '30%';
         
+        const base64Data = await fileToBase64(selectedFile);
+        
+        progressFill.style.width = '50%';
+        progressFill.textContent = '50%';
+        
+        // Step 3: Prepare data for Apps Script
         const timestamp = Date.now();
         const safeStudentName = student.name.replace(/[^a-zA-Z0-9]/g, '_');
         const fileName = `${safeStudentName}_${assignmentId}_${timestamp}.pdf`;
-        const storagePath = `submissions/${assignmentId}/${studentId}/${fileName}`;
         
-        // Step 3: Upload file to Firebase Storage
-        progressFill.style.width = '40%';
-        progressFill.textContent = '40%';
+        const payload = {
+            fileName: fileName,
+            fileType: selectedFile.type,
+            fileData: base64Data,
+            studentName: student.name,
+            studentId: studentId,
+            studentClass: student.class,
+            studentSemester: student.semester,
+            assignmentId: assignmentId,
+            comments: comments,
+            timestamp: timestamp
+        };
         
-        const storageRef = firebase.storage().ref();
-        const fileRef = storageRef.child(storagePath);
+        console.log('Sending to Apps Script...');
         
-        // Upload with progress tracking
-        const uploadTask = fileRef.put(selectedFile);
-        
-        // Track upload progress
-        uploadTask.on('state_changed', 
-            (snapshot) => {
-                // Progress function
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                const totalProgress = 40 + (progress * 0.3); // Scale from 40% to 70%
-                progressFill.style.width = totalProgress + '%';
-                progressFill.textContent = Math.round(totalProgress) + '%';
+        // Step 4: Send to Apps Script
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // This is important for CORS
+            headers: {
+                'Content-Type': 'application/json',
             },
-            (error) => {
-                // Error function
-                throw error;
-            }
-        );
+            body: JSON.stringify(payload)
+        });
         
-        // Wait for upload to complete
-        await uploadTask;
+        progressFill.style.width = '80%';
+        progressFill.textContent = '80%';
         
-        progressFill.style.width = '75%';
-        progressFill.textContent = '75%';
-        
-        // Step 4: Get the download URL
-        const downloadURL = await fileRef.getDownloadURL();
-        
-        progressFill.style.width = '85%';
-        progressFill.textContent = '85%';
+        // Note: With no-cors, we can't read the response
+        // We'll assume it worked and save to Firestore
         
         // Step 5: Save submission data to Firestore
         const submissionData = {
@@ -452,13 +484,13 @@ async function handleSubmission(e) {
             fileName: selectedFile.name,
             storedFileName: fileName,
             fileSize: selectedFile.size,
-            filePath: storagePath,
-            fileURL: downloadURL,
             comments: comments || '',
             status: 'submitted',
-            submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+            submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            driveFolder: `Assignments/${assignmentId}` // Optional: store folder info
         };
         
+        console.log('Saving submission to Firestore:', submissionData);
         await db.collection('submissions').add(submissionData);
         
         progressFill.style.width = '100%';
@@ -473,25 +505,13 @@ async function handleSubmission(e) {
             // Clear the selected file
             selectedFile = null;
             
-            console.log('Submission complete! File uploaded to:', downloadURL);
+            console.log('Submission complete! File sent to Google Drive');
         }, 500);
         
     } catch (error) {
         console.error('Submission error:', error);
         
-        // Show detailed error message
-        let errorMessage = 'Error submitting assignment: ';
-        if (error.code === 'storage/unauthorized') {
-            errorMessage += 'You dont have permission to upload files.';
-        } else if (error.code === 'storage/canceled') {
-            errorMessage += 'Upload was canceled.';
-        } else if (error.code === 'storage/unknown') {
-            errorMessage += 'An unknown error occurred.';
-        } else {
-            errorMessage += error.message;
-        }
-        
-        alert(errorMessage);
+        alert('Error submitting assignment: ' + error.message);
         
         // Reset button
         submitBtn.disabled = false;
@@ -502,6 +522,23 @@ async function handleSubmission(e) {
         progressFill.style.width = '0%';
         progressFill.textContent = '0%';
     }
+}
+
+// ============================================
+// HELPER: Convert File to Base64
+// ============================================
+
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = error => reject(error);
+    });
 }
 
 // ============================================
@@ -518,16 +555,19 @@ function resetForm() {
     const progressFill = document.getElementById('progressFill');
     const fileInput = document.getElementById('fileUpload');
     
-    form.reset();
-    form.style.display = 'block';
-    successDiv.style.display = 'none';
-    fileInfo.style.display = 'none';
-    fileUploadArea.style.display = 'block';
-    progressBar.style.display = 'none';
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
-    progressFill.style.width = '0%';
-    progressFill.textContent = '0%';
+    if (form) form.style.display = 'block';
+    if (successDiv) successDiv.style.display = 'none';
+    if (fileInfo) fileInfo.style.display = 'none';
+    if (fileUploadArea) fileUploadArea.style.display = 'block';
+    if (progressBar) progressBar.style.display = 'none';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
+    }
+    if (progressFill) {
+        progressFill.style.width = '0%';
+        progressFill.textContent = '0%';
+    }
     
     // Clear file input
     if (fileInput) {
@@ -542,23 +582,5 @@ window.closeModal = function() {
     if (modal) {
         modal.style.display = 'none';
         resetForm();
-    }
-}
-
-// ============================================
-// CHECK SUBMISSION STATUS
-// ============================================
-
-async function checkSubmissionStatus(assignmentId, studentId) {
-    try {
-        const snapshot = await db.collection('submissions')
-            .where('assignmentId', '==', assignmentId)
-            .where('studentId', '==', studentId)
-            .get();
-        
-        return !snapshot.empty;
-    } catch (error) {
-        console.error('Error checking submission status:', error);
-        return false;
     }
 }
