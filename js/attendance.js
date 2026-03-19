@@ -79,9 +79,14 @@ async function updateStudentOptions() {
     // Clear student dropdown
     studentSelect.innerHTML = '<option value="">Select Student</option>';
     
-    if (!classVal || !semesterVal) return;
+    if (!classVal || !semesterVal) {
+        console.log('Class or semester not selected');
+        return;
+    }
     
     try {
+        console.log(`Loading students for class ${classVal}, semester ${semesterVal}`);
+        
         // Load students from Firebase
         const snapshot = await db.collection('students')
             .where('class', '==', classVal)
@@ -109,6 +114,7 @@ async function updateStudentOptions() {
     } catch (error) {
         console.error('Error loading students:', error);
         studentSelect.innerHTML = '<option value="">Error loading students</option>';
+        alert('Error loading students. Please check your connection and try again.');
     }
 }
 
@@ -136,6 +142,12 @@ async function handleAttendanceCheck(e) {
     
     // Update display name
     document.getElementById('studentNameDisplay').textContent = studentName;
+    
+    // Show loading state
+    const resultsDiv = document.getElementById('attendanceResults');
+    const noDataDiv = document.getElementById('noData');
+    resultsDiv.style.display = 'none';
+    noDataDiv.style.display = 'none';
     
     // Load attendance data
     await loadAttendanceData(studentId, studentName, classVal, semesterVal);
@@ -165,8 +177,9 @@ async function loadAttendanceData(studentId, studentName, classVal, semesterVal)
             document.getElementById('absentCount').textContent = summary.absent || 0;
             document.getElementById('lateCount').textContent = summary.late || 0;
             
-            const percent = summary.percentage || 
-                (summary.totalClasses > 0 ? ((summary.present / summary.totalClasses) * 100).toFixed(1) : 0);
+            const total = summary.totalClasses || 0;
+            const present = summary.present || 0;
+            const percent = total > 0 ? ((present / total) * 100).toFixed(1) : 0;
             document.getElementById('attendancePercent').textContent = percent + '%';
             
             // Load detailed history
@@ -184,7 +197,9 @@ async function loadAttendanceData(studentId, studentName, classVal, semesterVal)
         
     } catch (error) {
         console.error('Error loading attendance:', error);
-        alert('Error loading attendance data');
+        alert('Error loading attendance data: ' + error.message);
+        resultsDiv.style.display = 'none';
+        noDataDiv.style.display = 'block';
     }
 }
 
@@ -257,9 +272,6 @@ async function loadAttendanceHistory(studentName, classVal, semesterVal) {
     
     try {
         // Get last 30 days of attendance
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
         const snapshot = await db.collection('attendance')
             .where('studentName', '==', studentName)
             .where('class', '==', classVal)
@@ -307,12 +319,13 @@ async function loadMonthlyChart(studentName, classVal, semesterVal) {
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
         sixMonthsAgo.setDate(1);
+        const sixMonthsAgoStr = sixMonthsAgo.toISOString().split('T')[0];
         
         const snapshot = await db.collection('attendance')
             .where('studentName', '==', studentName)
             .where('class', '==', classVal)
             .where('semester', '==', semesterVal)
-            .where('date', '>=', sixMonthsAgo.toISOString().split('T')[0])
+            .where('date', '>=', sixMonthsAgoStr)
             .get();
         
         // Process data by month
@@ -434,7 +447,7 @@ function downloadAttendanceReport() {
     // Create CSV
     let csv = 'Date,Status\n';
     rows.forEach(row => {
-        if (row[0] !== 'No attendance records found') {
+        if (row[0] !== 'No attendance records found' && row[0] !== 'Loading...') {
             csv += row.join(',') + '\n';
         }
     });
@@ -449,209 +462,4 @@ function downloadAttendanceReport() {
     window.URL.revokeObjectURL(url);
     
     console.log('Report downloaded');
-}
-
-// ============================================
-// ADD THESE STYLES TO YOUR CSS IF NOT PRESENT
-// ============================================
-
-const attendanceStyles = `
-    .attendance-checker {
-        padding: 40px 0;
-        background: #f5f5f5;
-    }
-    
-    .checker-card {
-        background: white;
-        border-radius: 8px;
-        padding: 30px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        max-width: 800px;
-        margin: 0 auto;
-    }
-    
-    .checker-card h2 {
-        color: #333;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .attendance-form .form-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin-bottom: 20px;
-    }
-    
-    .attendance-results {
-        padding: 40px 0;
-    }
-    
-    .results-card {
-        background: white;
-        border-radius: 8px;
-        padding: 30px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    
-    .results-card h2 {
-        color: #333;
-        margin-bottom: 30px;
-        text-align: center;
-    }
-    
-    .attendance-stats {
-        display: flex;
-        align-items: center;
-        gap: 40px;
-        margin-bottom: 40px;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    
-    .stat-circle {
-        text-align: center;
-    }
-    
-    .circle-progress {
-        width: 150px;
-        height: 150px;
-        border-radius: 50%;
-        background: #3498db;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 32px;
-        font-weight: bold;
-        color: white;
-        margin-bottom: 10px;
-        box-shadow: 0 4px 10px rgba(52,152,219,0.3);
-    }
-    
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
-        flex: 1;
-    }
-    
-    .stat-box {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        text-align: center;
-    }
-    
-    .stat-box.present {
-        border-left: 4px solid #27ae60;
-    }
-    
-    .stat-box.absent {
-        border-left: 4px solid #e74c3c;
-    }
-    
-    .stat-box.late {
-        border-left: 4px solid #f39c12;
-    }
-    
-    .stat-value {
-        display: block;
-        font-size: 28px;
-        font-weight: bold;
-        color: #333;
-    }
-    
-    .stat-label {
-        color: #666;
-        font-size: 14px;
-    }
-    
-    .attendance-history {
-        margin: 30px 0;
-    }
-    
-    .attendance-history h3 {
-        color: #333;
-        margin-bottom: 15px;
-    }
-    
-    .attendance-chart {
-        margin: 30px 0;
-        height: 300px;
-    }
-    
-    .attendance-actions {
-        display: flex;
-        justify-content: center;
-        margin-top: 30px;
-    }
-    
-    .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: capitalize;
-    }
-    
-    .status-badge.present {
-        background: #d4edda;
-        color: #155724;
-    }
-    
-    .status-badge.absent {
-        background: #f8d7da;
-        color: #721c24;
-    }
-    
-    .status-badge.late {
-        background: #fff3cd;
-        color: #856404;
-    }
-    
-    .no-data {
-        text-align: center;
-        padding: 60px 0;
-    }
-    
-    .no-data i {
-        font-size: 64px;
-        color: #ccc;
-        margin-bottom: 20px;
-    }
-    
-    .no-data h3 {
-        color: #666;
-        margin-bottom: 10px;
-    }
-    
-    .no-data p {
-        color: #999;
-    }
-    
-    @media (max-width: 768px) {
-        .attendance-stats {
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .attendance-form .form-row {
-            grid-template-columns: 1fr;
-        }
-        
-        .stats-grid {
-            width: 100%;
-        }
-    }
-`;
-
-// Add styles if they don't exist
-if (!document.getElementById('attendance-styles')) {
-    const styleSheet = document.createElement('style');
-    styleSheet.id = 'attendance-styles';
-    styleSheet.textContent = attendanceStyles;
-    document.head.appendChild(styleSheet);
 }
