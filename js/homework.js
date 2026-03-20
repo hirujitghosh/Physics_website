@@ -305,6 +305,10 @@ function validateForm() {
 // HANDLE SUBMISSION - USING IFRAME METHOD
 // ============================================
 
+// ============================================
+// HANDLE SUBMISSION - FIXED (Saves to Firestore)
+// ============================================
+
 async function handleSubmission(e) {
     e.preventDefault();
 
@@ -324,26 +328,37 @@ async function handleSubmission(e) {
     submitBtn.disabled = true;
     submitBtn.innerHTML = 'Uploading...';
     progressBar.style.display = 'block';
+    progressFill.style.width = '10%';
+    progressFill.textContent = '10% - Starting...';
 
     try {
         // Get student info
         const studentDoc = await db.collection('students').doc(studentId).get();
+        
+        if (!studentDoc.exists) {
+            throw new Error('Student not found');
+        }
+        
         const student = studentDoc.data();
 
-        progressFill.style.width = '30%';
-        progressFill.textContent = 'Preparing file...';
+        progressFill.style.width = '20%';
+        progressFill.textContent = '20% - Student found';
 
         // Convert file to Base64
         const base64 = await toBase64(selectedFile);
+        const base64Data = base64.split(',')[1]; // remove prefix
 
-        progressFill.style.width = '60%';
-        progressFill.textContent = 'Uploading...';
+        progressFill.style.width = '40%';
+        progressFill.textContent = '40% - File converted';
 
         // Send to Apps Script
         const res = await fetch(APPS_SCRIPT_URL, {
             method: "POST",
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
-                file: base64.split(',')[1], // remove prefix
+                file: base64Data,
                 fileName: selectedFile.name,
                 contentType: selectedFile.type,
                 assignmentId,
@@ -354,24 +369,56 @@ async function handleSubmission(e) {
             })
         });
 
-        const result = await res.json();
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
 
-        if (!result.success) throw new Error(result.message);
+        const result = await res.json();
+        console.log('Apps Script response:', result);
+
+        if (!result.success) {
+            throw new Error(result.message || 'Upload failed');
+        }
+
+        progressFill.style.width = '70%';
+        progressFill.textContent = '70% - Uploaded to Drive';
+
+        // ===== FIX: SAVE TO FIRESTORE =====
+        const submissionData = {
+            assignmentId: assignmentId,
+            studentId: studentId,
+            studentName: student.name,
+            studentClass: student.class,
+            studentSemester: student.semester,
+            fileName: selectedFile.name,
+            fileSize: selectedFile.size,
+            fileUrl: result.fileUrl || '',
+            fileId: result.fileId || '',
+            drivePath: result.folderPath || '',
+            comments: comments || '',
+            status: 'submitted',
+            submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('submissions').add(submissionData);
+        console.log('Submission saved to Firestore');
+        // ===== END OF FIX =====
 
         progressFill.style.width = '100%';
-        progressFill.textContent = 'Done';
+        progressFill.textContent = '100% - Complete!';
 
+        // Hide form and show success
         document.getElementById('submissionForm').style.display = 'none';
         document.getElementById('submissionSuccess').style.display = 'block';
 
     } catch (err) {
+        console.error('Submission error:', err);
         alert('Upload failed: ' + err.message);
         submitBtn.disabled = false;
         submitBtn.innerHTML = 'Submit Assignment';
         progressBar.style.display = 'none';
     }
 }
-
 // ============================================
 // MODAL HELPER
 // ============================================
