@@ -229,12 +229,52 @@ async function loadStudentDashboard(student) {
     const dashboard = document.getElementById('studentDashboard');
     
     try {
-        // Load attendance summary
+        // Load attendance records directly from attendance collection for accurate count
+        const attendanceSnapshot = await db.collection('attendance')
+            .where('studentName', '==', student.name)
+            .where('class', '==', student.class)
+            .where('semester', '==', student.semester)
+            .get();
+        
+        // Calculate attendance statistics from actual records
+        let totalClasses = 0;
+        let present = 0;
+        let absent = 0;
+        let late = 0;
+        
+        attendanceSnapshot.forEach(doc => {
+            const record = doc.data();
+            totalClasses++;
+            
+            switch(record.status) {
+                case 'present':
+                    present++;
+                    break;
+                case 'absent':
+                    absent++;
+                    break;
+                case 'late':
+                    late++;
+                    break;
+            }
+        });
+        
+        // Calculate percentage
+        const percentage = totalClasses > 0 
+            ? ((present + late) / totalClasses * 100).toFixed(1) 
+            : 0;
+        
+        // Also try to get from summary for comparison/backup
         const attendanceDoc = await db.collection('attendance_summary').doc(student.id).get();
-        const attendance = attendanceDoc.exists ? attendanceDoc.data() : { 
-            percentage: 0, 
-            present: 0, 
-            totalClasses: 0 
+        const summary = attendanceDoc.exists ? attendanceDoc.data() : {};
+        
+        // Use record data if available, otherwise fall back to summary
+        const attendance = {
+            totalClasses: totalClasses > 0 ? totalClasses : (summary.totalClasses || 0),
+            present: present > 0 ? present : (summary.present || 0),
+            absent: absent > 0 ? absent : (summary.absent || 0),
+            late: late > 0 ? late : (summary.late || 0),
+            percentage: percentage > 0 ? percentage : (summary.percentage || 0)
         };
         
         // Load submissions
@@ -260,7 +300,7 @@ async function loadStudentDashboard(student) {
             ? (gradedSubmissions.reduce((sum, s) => sum + s.marks, 0) / gradedSubmissions.length).toFixed(1)
             : 'N/A';
         
-        // Build dashboard HTML
+        // Build dashboard HTML - using the same structure but with accurate data
         dashboard.innerHTML = `
             <div class="dashboard-header">
                 <h2>${student.name}'s Dashboard</h2>
@@ -271,7 +311,7 @@ async function loadStudentDashboard(student) {
                 <div class="stat-item">
                     <i class="fas fa-calendar-check"></i>
                     <div>
-                        <span class="stat-value">${attendance.percentage || 0}%</span>
+                        <span class="stat-value">${attendance.percentage}%</span>
                         <span class="stat-label">Attendance</span>
                     </div>
                 </div>
@@ -318,19 +358,19 @@ async function loadStudentDashboard(student) {
                 <div class="attendance-grid">
                     <div class="detail-item">
                         <span class="label">Total Classes:</span>
-                        <span class="value">${attendance.totalClasses || 0}</span>
+                        <span class="value">${attendance.totalClasses}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Present:</span>
-                        <span class="value present">${attendance.present || 0}</span>
+                        <span class="value present">${attendance.present}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Absent:</span>
-                        <span class="value absent">${attendance.absent || 0}</span>
+                        <span class="value absent">${attendance.absent}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Late:</span>
-                        <span class="value late">${attendance.late || 0}</span>
+                        <span class="value late">${attendance.late}</span>
                     </div>
                 </div>
             </div>
@@ -344,9 +384,7 @@ async function loadStudentDashboard(student) {
         console.error('Error building dashboard:', error);
         dashboard.innerHTML = '<p class="error">Error loading student data</p>';
     }
-}
-
-// ============================================
+}// ============================================
 // DOWNLOAD STUDENT LIST AS CSV
 // ============================================
 
