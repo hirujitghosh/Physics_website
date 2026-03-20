@@ -229,62 +229,13 @@ async function loadStudentDashboard(student) {
     const dashboard = document.getElementById('studentDashboard');
     
     try {
-        // Try to load from attendance_summary first (faster) - like in loadAttendanceData
-        const summaryDoc = await db.collection('attendance_summary').doc(student.id).get();
-        
-        let totalClasses = 0;
-        let present = 0;
-        let absent = 0;
-        let late = 0;
-        let percentage = 0;
-        
-        if (summaryDoc.exists) {
-            // Use summary data if available (like attendance.js line 138-150)
-            console.log('Found attendance summary for student');
-            const summary = summaryDoc.data();
-            totalClasses = summary.totalClasses || 0;
-            present = summary.present || 0;
-            absent = summary.absent || 0;
-            late = summary.late || 0;
-            
-            // Calculate percentage the same way as attendance.js (present/total)
-            percentage = totalClasses > 0 ? ((present / totalClasses) * 100).toFixed(1) : 0;
-            
-        } else {
-            // If no summary, load from attendance records (like loadAttendanceFromRecords)
-            console.log('No summary found, loading from attendance records');
-            
-            const snapshot = await db.collection('attendance')
-                .where('studentName', '==', student.name)
-                .where('class', '==', student.class)
-                .where('semester', '==', student.semester)
-                .get();
-            
-            console.log(`Found ${snapshot.size} attendance records`);
-            
-            if (!snapshot.empty) {
-                // Calculate statistics from records (like attendance.js line 174-187)
-                snapshot.forEach(doc => {
-                    const record = doc.data();
-                    totalClasses++;
-                    
-                    switch(record.status) {
-                        case 'present':
-                            present++;
-                            break;
-                        case 'absent':
-                            absent++;
-                            break;
-                        case 'late':
-                            late++;
-                            break;
-                    }
-                });
-                
-                // Calculate percentage exactly like attendance.js (present/total)
-                percentage = totalClasses > 0 ? ((present / totalClasses) * 100).toFixed(1) : 0;
-            }
-        }
+        // Load attendance summary
+        const attendanceDoc = await db.collection('attendance_summary').doc(student.id).get();
+        const attendance = attendanceDoc.exists ? attendanceDoc.data() : { 
+            percentage: 0, 
+            present: 0, 
+            totalClasses: 0 
+        };
         
         // Load submissions
         const submissionsSnapshot = await db.collection('submissions')
@@ -320,7 +271,7 @@ async function loadStudentDashboard(student) {
                 <div class="stat-item">
                     <i class="fas fa-calendar-check"></i>
                     <div>
-                        <span class="stat-value">${percentage}%</span>
+                        <span class="stat-value">${attendance.percentage || 0}%</span>
                         <span class="stat-label">Attendance</span>
                     </div>
                 </div>
@@ -367,23 +318,20 @@ async function loadStudentDashboard(student) {
                 <div class="attendance-grid">
                     <div class="detail-item">
                         <span class="label">Total Classes:</span>
-                        <span class="value">${totalClasses}</span>
+                        <span class="value">${attendance.totalClasses || 0}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Present:</span>
-                        <span class="value present">${present}</span>
+                        <span class="value present">${attendance.present || 0}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Absent:</span>
-                        <span class="value absent">${absent}</span>
+                        <span class="value absent">${attendance.absent || 0}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Late:</span>
-                        <span class="value late">${late}</span>
+                        <span class="value late">${attendance.late || 0}</span>
                     </div>
-                </div>
-                <div style="margin-top: 10px; padding: 8px; background: #e8f4fd; border-radius: 4px; text-align: center;">
-                    <strong>Attendance Percentage: ${percentage}% (Present/Total)</strong>
                 </div>
             </div>
             
@@ -397,6 +345,7 @@ async function loadStudentDashboard(student) {
         dashboard.innerHTML = '<p class="error">Error loading student data</p>';
     }
 }
+
 // ============================================
 // DOWNLOAD STUDENT LIST AS CSV
 // ============================================
