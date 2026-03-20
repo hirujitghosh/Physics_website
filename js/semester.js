@@ -211,6 +211,7 @@ async function showStudentDashboard(studentId) {
         }
         
         const studentData = studentDoc.data();
+        const studentName = studentData.name || '';
         
         // Fetch submissions for this student
         const submissionsSnapshot = await db.collection('submissions')
@@ -219,32 +220,55 @@ async function showStudentDashboard(studentId) {
             .limit(5)
             .get();
         
-        // Fetch attendance for this student
+        // Fetch attendance for this student - USING STUDENT NAME, CLASS, AND SEMESTER
+        // This matches the attendance.js approach
         const attendanceSnapshot = await db.collection('attendance')
-            .where('studentId', '==', studentId)
+            .where('studentName', '==', studentName)
+            .where('class', '==', className)
+            .where('semester', '==', semesterValue)
             .orderBy('date', 'desc')
             .limit(30)
             .get();
         
-        // Calculate stats
-        const totalSubmissions = submissionsSnapshot.size;
-        const gradedSubmissions = submissionsSnapshot.docs.filter(doc => doc.data().status === 'graded').length;
-        const pendingSubmissions = submissionsSnapshot.docs.filter(doc => doc.data().status === 'pending').length;
-        
-        // Calculate attendance percentage
+        // Also try to get from attendance_summary if available (faster)
         let totalClasses = 0;
         let presentClasses = 0;
+        let absentClasses = 0;
+        let lateClasses = 0;
         
-        attendanceSnapshot.forEach(doc => {
-            totalClasses++;
-            if (doc.data().status === 'present') {
-                presentClasses++;
-            }
-        });
+        // Try summary first
+        const summaryDoc = await db.collection('attendance_summary').doc(studentId).get();
+        
+        if (summaryDoc.exists) {
+            console.log('Found attendance summary');
+            const summary = summaryDoc.data();
+            totalClasses = summary.totalClasses || 0;
+            presentClasses = summary.present || 0;
+            absentClasses = summary.absent || 0;
+            lateClasses = summary.late || 0;
+        } else if (!attendanceSnapshot.empty) {
+            // Calculate from attendance records
+            console.log(`Found ${attendanceSnapshot.size} attendance records`);
+            
+            attendanceSnapshot.forEach(doc => {
+                totalClasses++;
+                const status = doc.data().status;
+                if (status === 'present') presentClasses++;
+                else if (status === 'absent') absentClasses++;
+                else if (status === 'late') lateClasses++;
+            });
+        } else {
+            console.log('No attendance records found');
+        }
         
         const attendancePercentage = totalClasses > 0 
             ? Math.round((presentClasses / totalClasses) * 100) 
             : 0;
+        
+        // Calculate submission stats
+        const totalSubmissions = submissionsSnapshot.size;
+        const gradedSubmissions = submissionsSnapshot.docs.filter(doc => doc.data().status === 'graded').length;
+        const pendingSubmissions = submissionsSnapshot.docs.filter(doc => doc.data().status === 'pending').length;
         
         // Build dashboard HTML
         let dashboardHtml = `
@@ -326,7 +350,11 @@ async function showStudentDashboard(studentId) {
                     </div>
                     <div class="detail-item">
                         <span class="label">Absent</span>
-                        <span class="value">${totalClasses - presentClasses}</span>
+                        <span class="value">${absentClasses}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Late</span>
+                        <span class="value">${lateClasses}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Percentage</span>
@@ -444,4 +472,4 @@ function showError(message) {
             errorDiv.remove();
         }
     }, 5000);
-}S
+}
