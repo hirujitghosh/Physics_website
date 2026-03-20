@@ -146,39 +146,41 @@
         </div>
     </section>
 
-    <!-- Feedback Section -->
-    <section id="feedback" class="feedback-section">
-        <h2>Student Feedback</h2>
-        <div class="feedback-form-container">
-            <form id="feedbackForm">
-                <div class="form-group">
-                    <input type="text" id="feedbackName" placeholder="Your Name" required>
+<!-- Feedback Section -->
+<section id="feedback" class="feedback-section">
+    <h2>Student Feedback</h2>
+    <div class="feedback-form-container">
+        <form id="feedbackForm" onsubmit="submitFeedback(event)">
+            <div class="form-group">
+                <input type="text" id="feedbackName" placeholder="Your Name" required>
+            </div>
+            <div class="form-group">
+                <select id="feedbackClass" required>
+                    <option value="">Select Class</option>
+                    <option value="11">Class 11</option>
+                    <option value="12">Class 12</option>
+                    <option value="BSc">BSc</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <textarea id="feedbackMessage" rows="4" placeholder="Your feedback..." required></textarea>
+            </div>
+            <div class="form-group rating-group">
+                <label>Rating:</label>
+                <div class="star-rating" id="starRating">
+                    <i class="far fa-star" data-rating="1"></i>
+                    <i class="far fa-star" data-rating="2"></i>
+                    <i class="far fa-star" data-rating="3"></i>
+                    <i class="far fa-star" data-rating="4"></i>
+                    <i class="far fa-star" data-rating="5"></i>
                 </div>
-                <div class="form-group">
-                    <select id="feedbackClass" required>
-                        <option value="">Select Class</option>
-                        <option value="11">Class 11</option>
-                        <option value="12">Class 12</option>
-                        <option value="BSc">BSc</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <textarea id="feedbackMessage" rows="4" placeholder="Your feedback..." required></textarea>
-                </div>
-                <div class="form-group rating-group">
-                    <label>Rating:</label>
-                    <div class="star-rating">
-                        <i class="far fa-star" data-rating="1"></i>
-                        <i class="far fa-star" data-rating="2"></i>
-                        <i class="far fa-star" data-rating="3"></i>
-                        <i class="far fa-star" data-rating="4"></i>
-                        <i class="far fa-star" data-rating="5"></i>
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-primary">Submit Feedback</button>
-            </form>
-        </div>
-    </section>
+                <input type="hidden" id="feedbackRating" value="0">
+            </div>
+            <div id="feedbackMessage" class="form-message"></div>
+            <button type="submit" class="btn btn-primary" id="submitBtn">Submit Feedback</button>
+        </form>
+    </div>
+</section>
 
     <!-- Footer -->
     <footer class="footer">
