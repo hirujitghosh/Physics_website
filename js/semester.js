@@ -1,572 +1,447 @@
-// js/semester.js - Complete Semester Page Functionality
+// semester.js
 
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Semester page loaded');
-    
-    // Get class and semester from URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const className = urlParams.get('class');
-    const semester = urlParams.get('sem');
-    
-    console.log('Class:', className, 'Semester:', semester);
-    
-    if (!className || !semester) {
-        console.log('No class/semester specified, redirecting to home');
-        window.location.href = 'index.html';
-        return;
-    }
-    
-    // Display class info
-    document.getElementById('classValue').textContent = className;
-    document.getElementById('semesterValue').textContent = semester;
-    document.getElementById('className').innerHTML = `Class ${className} - Semester ${semester}`;
-    
-    // Load students
-    loadStudents(className, semester);
-    
-    // Setup search
-    const searchInput = document.getElementById('searchStudent');
-    if (searchInput) {
-        searchInput.addEventListener('input', function(e) {
-            filterStudents(e.target.value);
-        });
-    }
-    
-    // Setup attendance button
-    const attendanceBtn = document.getElementById('takeAttendance');
-    if (attendanceBtn) {
-        attendanceBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            window.location.href = `admin.html?tab=attendance&class=${className}&semester=${semester}`;
-        });
-    }
-    
-    // Setup download button
-    const downloadBtn = document.getElementById('downloadList');
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            downloadStudentList();
-        });
-    }
-    
-    // Modal close
-    const closeBtn = document.querySelector('.close-modal');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeModal);
-    }
-    
-    window.addEventListener('click', function(e) {
-        if (e.target.classList.contains('modal')) {
-            closeModal();
-        }
-    });
-});
+// Get class and semester from URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+const className = urlParams.get('class') || '11';
+const semesterValue = urlParams.get('semester') || '1';
+
+// Update page title
+document.getElementById('classValue').textContent = className;
+document.getElementById('semesterValue').textContent = semesterValue;
 
 // Global variables
 let allStudents = [];
+let currentStudentId = null;
 
-// ============================================
-// LOAD STUDENTS FROM FIREBASE
-// ============================================
+// Load students on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadStudents();
+    setupEventListeners();
+    loadDashboardStats();
+});
 
-async function loadStudents(className, semester) {
-    const studentsGrid = document.getElementById('studentsGrid');
-    const noStudents = document.getElementById('noStudents');
-    const totalSpan = document.getElementById('totalStudents');
-    
-    if (!studentsGrid || !noStudents) return;
-    
+// Setup event listeners
+function setupEventListeners() {
+    // Search functionality
+    document.getElementById('searchStudent').addEventListener('input', function(e) {
+        filterStudents(e.target.value);
+    });
+
+    // Take attendance button
+    document.getElementById('takeAttendance').addEventListener('click', function(e) {
+        e.preventDefault();
+        takeAttendance();
+    });
+
+    // Download list button
+    document.getElementById('downloadList').addEventListener('click', function(e) {
+        e.preventDefault();
+        downloadStudentList();
+    });
+
+    // Close modal when clicking X
+    document.querySelector('.close-modal').addEventListener('click', function() {
+        document.getElementById('studentModal').style.display = 'none';
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(e) {
+        const modal = document.getElementById('studentModal');
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
+
+// Load students from Firestore
+async function loadStudents() {
     try {
-        console.log(`Loading students for class ${className}, semester ${semester}`);
+        console.log('Loading students for class:', className, 'semester:', semesterValue);
         
-        // Query Firestore for students
-        const snapshot = await db.collection('students')
+        // Show loading spinner
+        document.querySelector('.loading-spinner').style.display = 'block';
+        document.getElementById('noStudents').style.display = 'none';
+        
+        // Query students based on class and semester
+        const studentsRef = db.collection('students');
+        const snapshot = await studentsRef
             .where('class', '==', className)
-            .where('semester', '==', semester)
-            .orderBy('name')
+            .where('semester', '==', semesterValue)
             .get();
         
-        console.log(`Found ${snapshot.size} students`);
-        
         if (snapshot.empty) {
-            // No students found
-            studentsGrid.style.display = 'none';
-            noStudents.style.display = 'block';
-            if (totalSpan) totalSpan.textContent = '0';
+            console.log('No students found');
+            document.querySelector('.loading-spinner').style.display = 'none';
+            document.getElementById('noStudents').style.display = 'block';
+            document.getElementById('totalStudents').textContent = '0';
             return;
         }
         
-        // Clear loading spinner
-        studentsGrid.innerHTML = '';
-        studentsGrid.style.display = 'grid';
-        noStudents.style.display = 'none';
-        
+        // Clear existing students
         allStudents = [];
         
-        // Create student cards
+        // Process each student document
         snapshot.forEach(doc => {
+            const studentData = doc.data();
             const student = {
                 id: doc.id,
-                ...doc.data()
+                ...studentData
             };
             allStudents.push(student);
-            
-            const card = createStudentCard(student);
-            studentsGrid.appendChild(card);
         });
         
-        // Update total count
-        if (totalSpan) totalSpan.textContent = snapshot.size;
+        console.log('Loaded students:', allStudents);
+        
+        // Update total students count
+        document.getElementById('totalStudents').textContent = allStudents.length;
+        
+        // Display students
+        displayStudents(allStudents);
+        
+        // Hide loading spinner
+        document.querySelector('.loading-spinner').style.display = 'none';
         
     } catch (error) {
         console.error('Error loading students:', error);
-        studentsGrid.innerHTML = '<p class="error">Error loading students. Please refresh the page.</p>';
+        showError('Failed to load students. Please refresh the page.');
+        
+        // Hide loading spinner and show error
+        document.querySelector('.loading-spinner').style.display = 'none';
+        document.getElementById('noStudents').style.display = 'block';
+        document.getElementById('noStudents').innerHTML = `
+            <i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i>
+            <h3>Error Loading Students</h3>
+            <p>${error.message}</p>
+            <button onclick="loadStudents()" class="btn btn-primary">Try Again</button>
+        `;
     }
 }
 
-// ============================================
-// CREATE STUDENT CARD
-// ============================================
-
-function createStudentCard(student) {
-    const card = document.createElement('div');
-    card.className = 'student-card';
-    card.dataset.studentId = student.id;
-    card.dataset.studentName = student.name.toLowerCase();
+// Display students in grid
+function displayStudents(students) {
+    const grid = document.getElementById('studentsGrid');
+    const noStudents = document.getElementById('noStudents');
     
-    // Get initials for avatar
-    const initials = student.name
-        .split(' ')
+    if (students.length === 0) {
+        grid.innerHTML = '';
+        noStudents.style.display = 'block';
+        return;
+    }
+    
+    noStudents.style.display = 'none';
+    
+    let html = '';
+    students.forEach(student => {
+        // Get initials for avatar
+        const initials = getInitials(student.name);
+        
+        html += `
+            <div class="student-card" onclick="showStudentDashboard('${student.id}')">
+                <div class="student-avatar" style="background: ${getAvatarColor(student.id)}">
+                    ${initials}
+                </div>
+                <h3>${student.name || 'Unknown'}</h3>
+                <div class="student-details">
+                    <span><i class="fas fa-id-card"></i> Roll: ${student.rollNumber || 'N/A'}</span>
+                    <span><i class="fas fa-envelope"></i> ${student.email || 'No email'}</span>
+                    <span><i class="fas fa-phone"></i> ${student.phone || 'No phone'}</span>
+                </div>
+                <button class="btn-view" onclick="event.stopPropagation(); showStudentDashboard('${student.id}')">
+                    <i class="fas fa-chart-line"></i> View Dashboard
+                </button>
+            </div>
+        `;
+    });
+    
+    grid.innerHTML = html;
+}
+
+// Filter students based on search
+function filterStudents(searchTerm) {
+    if (!searchTerm.trim()) {
+        displayStudents(allStudents);
+        return;
+    }
+    
+    const filtered = allStudents.filter(student => 
+        (student.name && student.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (student.email && student.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (student.rollNumber && student.rollNumber.toString().includes(searchTerm))
+    );
+    
+    displayStudents(filtered);
+}
+
+// Get initials from name
+function getInitials(name) {
+    if (!name) return '?';
+    return name.split(' ')
         .map(word => word[0])
         .join('')
         .toUpperCase()
         .substring(0, 2);
-    
-    card.innerHTML = `
-        <div class="student-avatar">
-            <span class="avatar-initials">${initials}</span>
-        </div>
-        <h3>${student.name}</h3>
-        <p class="student-details">
-            <span><i class="fas fa-envelope"></i> ${student.email || 'No email'}</span>
-            <span><i class="fas fa-phone"></i> ${student.phone || 'No phone'}</span>
-        </p>
-        <button class="btn-view" onclick="viewStudentDashboard('${student.id}')">
-            <i class="fas fa-chart-line"></i> View Dashboard
-        </button>
-    `;
-    
-    return card;
 }
 
-// ============================================
-// FILTER STUDENTS BY SEARCH
-// ============================================
-
-function filterStudents(searchTerm) {
-    const cards = document.querySelectorAll('.student-card');
-    const searchLower = searchTerm.toLowerCase();
-    
-    cards.forEach(card => {
-        const name = card.dataset.studentName;
-        if (name.includes(searchLower)) {
-            card.style.display = 'block';
-        } else {
-            card.style.display = 'none';
-        }
-    });
-    
-    // Show/hide no results message
-    const visibleCards = document.querySelectorAll('.student-card[style="display: block"]').length;
-    const noResultsMsg = document.getElementById('noSearchResults');
-    
-    if (visibleCards === 0 && cards.length > 0) {
-        if (!noResultsMsg) {
-            const msg = document.createElement('div');
-            msg.id = 'noSearchResults';
-            msg.className = 'no-results';
-            msg.innerHTML = '<p>No students match your search</p>';
-            document.querySelector('.students-grid').appendChild(msg);
-        }
-    } else {
-        if (noResultsMsg) noResultsMsg.remove();
-    }
+// Generate consistent color based on student ID
+function getAvatarColor(id) {
+    const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+    const index = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
+    return colors[index];
 }
 
-// ============================================
-// VIEW STUDENT DASHBOARD
-// ============================================
-
-window.viewStudentDashboard = async function(studentId) {
-    console.log('Viewing dashboard for student:', studentId);
-    
-    const student = allStudents.find(s => s.id === studentId);
-    if (!student) {
-        console.error('Student not found');
-        return;
-    }
-    
-    const modal = document.getElementById('studentModal');
-    const dashboard = document.getElementById('studentDashboard');
-    
-    if (!modal || !dashboard) return;
-    
-    // Show modal with loading
-    modal.style.display = 'block';
-    dashboard.innerHTML = '<div class="loading-spinner"><i class="fas fa-circle-notch fa-spin"></i> Loading student data...</div>';
-    
+// Show student dashboard modal
+async function showStudentDashboard(studentId) {
     try {
-        // Load student data
-        await loadStudentDashboard(student);
-    } catch (error) {
-        console.error('Error loading dashboard:', error);
-        dashboard.innerHTML = '<p class="error">Error loading student dashboard</p>';
-    }
-}
-
-async function loadStudentDashboard(student) {
-    const dashboard = document.getElementById('studentDashboard');
-    
-    try {
-        // Load attendance summary
-        const attendanceDoc = await db.collection('attendance_summary').doc(student.id).get();
-        const attendance = attendanceDoc.exists ? attendanceDoc.data() : { 
-            percentage: 0, 
-            present: 0, 
-            totalClasses: 0 
-        };
+        currentStudentId = studentId;
         
-        // Load submissions
+        // Show modal with loading
+        document.getElementById('studentModal').style.display = 'block';
+        document.getElementById('studentDashboard').innerHTML = `
+            <div class="loading-spinner">
+                <i class="fas fa-circle-notch fa-spin"></i>
+                <p>Loading student data...</p>
+            </div>
+        `;
+        
+        // Fetch student data
+        const studentDoc = await db.collection('students').doc(studentId).get();
+        
+        if (!studentDoc.exists) {
+            throw new Error('Student not found');
+        }
+        
+        const studentData = studentDoc.data();
+        
+        // Fetch submissions for this student
         const submissionsSnapshot = await db.collection('submissions')
-            .where('studentName', '==', student.name)
-            .where('studentClass', '==', student.class)
-            .where('studentSemester', '==', student.semester)
+            .where('studentId', '==', studentId)
             .orderBy('submittedAt', 'desc')
             .limit(5)
             .get();
         
-        const submissions = [];
-        submissionsSnapshot.forEach(doc => {
-            submissions.push({
-                id: doc.id,
-                ...doc.data()
-            });
+        // Fetch attendance for this student
+        const attendanceSnapshot = await db.collection('attendance')
+            .where('studentId', '==', studentId)
+            .orderBy('date', 'desc')
+            .limit(30)
+            .get();
+        
+        // Calculate stats
+        const totalSubmissions = submissionsSnapshot.size;
+        const gradedSubmissions = submissionsSnapshot.docs.filter(doc => doc.data().status === 'graded').length;
+        const pendingSubmissions = submissionsSnapshot.docs.filter(doc => doc.data().status === 'pending').length;
+        
+        // Calculate attendance percentage
+        let totalClasses = 0;
+        let presentClasses = 0;
+        
+        attendanceSnapshot.forEach(doc => {
+            totalClasses++;
+            if (doc.data().status === 'present') {
+                presentClasses++;
+            }
         });
         
-        // Calculate average marks
-        const gradedSubmissions = submissions.filter(s => s.marks !== undefined && s.marks !== null);
-        const avgMarks = gradedSubmissions.length > 0
-            ? (gradedSubmissions.reduce((sum, s) => sum + s.marks, 0) / gradedSubmissions.length).toFixed(1)
-            : 'N/A';
+        const attendancePercentage = totalClasses > 0 
+            ? Math.round((presentClasses / totalClasses) * 100) 
+            : 0;
         
         // Build dashboard HTML
-        dashboard.innerHTML = `
+        let dashboardHtml = `
             <div class="dashboard-header">
-                <h2>${student.name}'s Dashboard</h2>
-                <p>Class ${student.class} - Semester ${student.semester}</p>
+                <h2>${studentData.name || 'Student Dashboard'}</h2>
+                <p>Roll Number: ${studentData.rollNumber || 'N/A'}</p>
             </div>
             
             <div class="dashboard-stats">
                 <div class="stat-item">
-                    <i class="fas fa-calendar-check"></i>
-                    <div>
-                        <span class="stat-value">${attendance.percentage || 0}%</span>
-                        <span class="stat-label">Attendance</span>
-                    </div>
-                </div>
-                <div class="stat-item">
                     <i class="fas fa-tasks"></i>
                     <div>
-                        <span class="stat-value">${submissions.length}</span>
-                        <span class="stat-label">Submissions</span>
+                        <span class="stat-value">${totalSubmissions}</span>
+                        <span class="stat-label">Total Submissions</span>
                     </div>
                 </div>
                 <div class="stat-item">
-                    <i class="fas fa-star"></i>
+                    <i class="fas fa-check-circle" style="color: #27ae60;"></i>
                     <div>
-                        <span class="stat-value">${avgMarks}</span>
-                        <span class="stat-label">Avg Marks</span>
+                        <span class="stat-value">${gradedSubmissions}</span>
+                        <span class="stat-label">Graded</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-clock" style="color: #f39c12;"></i>
+                    <div>
+                        <span class="stat-value">${pendingSubmissions}</span>
+                        <span class="stat-label">Pending</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-calendar-check"></i>
+                    <div>
+                        <span class="stat-value">${attendancePercentage}%</span>
+                        <span class="stat-label">Attendance</span>
                     </div>
                 </div>
             </div>
             
             <div class="recent-submissions">
-                <h3>Recent Submissions</h3>
-                ${submissions.length > 0 ? `
-                    <div class="submission-list">
-                        ${submissions.map(sub => {
-                            const date = sub.submittedAt?.toDate?.() || new Date();
-                            return `
-                                <div class="submission-item">
-                                    <div class="submission-info">
-                                        <span class="assignment-id">Assignment: ${sub.assignmentId}</span>
-                                        <span class="submission-date">${date.toLocaleDateString()}</span>
-                                    </div>
-                                    <div class="submission-status ${sub.marks ? 'graded' : 'pending'}">
-                                        ${sub.marks ? `Marks: ${sub.marks}` : 'Pending'}
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
+                <h3><i class="fas fa-history"></i> Recent Submissions</h3>
+        `;
+        
+        if (submissionsSnapshot.empty) {
+            dashboardHtml += `
+                <p style="text-align: center; color: #666; padding: 20px;">
+                    <i class="fas fa-inbox" style="font-size: 24px; margin-bottom: 10px; display: block;"></i>
+                    No submissions yet
+                </p>
+            `;
+        } else {
+            submissionsSnapshot.forEach(doc => {
+                const submission = doc.data();
+                const date = submission.submittedAt ? submission.submittedAt.toDate() : new Date();
+                dashboardHtml += `
+                    <div class="submission-item">
+                        <span>${submission.assignmentTitle || 'Assignment'}</span>
+                        <span class="submission-status ${submission.status || 'pending'}">
+                            ${submission.status || 'pending'}
+                        </span>
                     </div>
-                ` : '<p>No submissions yet</p>'}
+                `;
+            });
+        }
+        
+        dashboardHtml += `
             </div>
             
             <div class="attendance-detail">
-                <h3>Attendance Details</h3>
+                <h3><i class="fas fa-calendar-alt"></i> Attendance Summary</h3>
                 <div class="attendance-grid">
                     <div class="detail-item">
-                        <span class="label">Total Classes:</span>
-                        <span class="value">${attendance.totalClasses || 0}</span>
+                        <span class="label">Total Classes</span>
+                        <span class="value">${totalClasses}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="label">Present:</span>
-                        <span class="value present">${attendance.present || 0}</span>
+                        <span class="label">Present</span>
+                        <span class="value">${presentClasses}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="label">Absent:</span>
-                        <span class="value absent">${attendance.absent || 0}</span>
+                        <span class="label">Absent</span>
+                        <span class="value">${totalClasses - presentClasses}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="label">Late:</span>
-                        <span class="value late">${attendance.late || 0}</span>
+                        <span class="label">Percentage</span>
+                        <span class="value">${attendancePercentage}%</span>
                     </div>
                 </div>
             </div>
             
             <div class="modal-actions">
-                <button class="btn btn-primary" onclick="closeModal()">Close</button>
+                <button class="btn btn-primary" onclick="markAttendance('${studentId}')">
+                    <i class="fas fa-check-circle"></i> Mark Attendance
+                </button>
+                <button class="btn btn-primary" style="background: #27ae60; margin-left: 10px;" 
+                        onclick="viewFullReport('${studentId}')">
+                    <i class="fas fa-chart-bar"></i> Full Report
+                </button>
             </div>
         `;
         
+        document.getElementById('studentDashboard').innerHTML = dashboardHtml;
+        
     } catch (error) {
-        console.error('Error building dashboard:', error);
-        dashboard.innerHTML = '<p class="error">Error loading student data</p>';
+        console.error('Error loading student dashboard:', error);
+        document.getElementById('studentDashboard').innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #e74c3c; margin-bottom: 15px;"></i>
+                <h3>Error Loading Dashboard</h3>
+                <p>${error.message}</p>
+                <button onclick="showStudentDashboard('${studentId}')" class="btn btn-primary" style="margin-top: 15px;">
+                    Try Again
+                </button>
+            </div>
+        `;
     }
 }
 
-// ============================================
-// DOWNLOAD STUDENT LIST AS CSV
-// ============================================
+// Load dashboard stats
+async function loadDashboardStats() {
+    try {
+        // Get total students count
+        const studentsSnapshot = await db.collection('students')
+            .where('class', '==', className)
+            .where('semester', '==', semesterValue)
+            .get();
+        
+        document.getElementById('totalStudents').textContent = studentsSnapshot.size;
+        
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
 
-function downloadStudentList() {
+// Take attendance function
+function takeAttendance() {
     if (allStudents.length === 0) {
-        alert('No students to download');
+        alert('No students to mark attendance for.');
         return;
     }
     
-    const className = document.getElementById('classValue').textContent;
-    const semester = document.getElementById('semesterValue').textContent;
+    // Redirect to attendance page with class and semester
+    window.location.href = `attendance.html?class=${className}&semester=${semesterValue}`;
+}
+
+// Download student list as CSV
+function downloadStudentList() {
+    if (allStudents.length === 0) {
+        alert('No students to download.');
+        return;
+    }
     
-    // Create CSV header
-    let csv = 'Name,Email,Phone,Class,Semester\n';
+    // Create CSV content
+    let csv = 'Name,Roll Number,Email,Phone\n';
     
-    // Add student data
     allStudents.forEach(student => {
-        csv += `${student.name},${student.email || ''},${student.phone || ''},${student.class},${student.semester}\n`;
+        csv += `"${student.name || ''}",${student.rollNumber || ''},"${student.email || ''}","${student.phone || ''}"\n`;
     });
     
-    // Download file
+    // Create download link
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `class-${className}-semester-${semester}-students.csv`;
+    a.download = `class_${className}_semester_${semesterValue}_students.csv`;
     a.click();
+    
     window.URL.revokeObjectURL(url);
-    
-    console.log('Student list downloaded');
 }
 
-// ============================================
-// MODAL HELPER
-// ============================================
-
-function closeModal() {
-    const modal = document.getElementById('studentModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+// Mark attendance for specific student
+function markAttendance(studentId) {
+    window.location.href = `attendance.html?class=${className}&semester=${semesterValue}&student=${studentId}`;
 }
 
-// ============================================
-// ADD THESE STYLES TO YOUR CSS IF NOT PRESENT
-// ============================================
+// View full report
+function viewFullReport(studentId) {
+    // This could open a detailed report page
+    alert('Full report feature coming soon!');
+}
 
-// You can add these styles to your style.css file
-const additionalStyles = `
-    .student-card {
-        background: white;
-        border-radius: 8px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        transition: transform 0.3s;
-    }
+// Show error message
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i>
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()">&times;</button>
+    `;
     
-    .student-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-    }
+    document.querySelector('.container').insertBefore(errorDiv, document.querySelector('.students-section'));
     
-    .student-avatar {
-        width: 80px;
-        height: 80px;
-        background: #3498db;
-        border-radius: 50%;
-        margin: 0 auto 15px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .avatar-initials {
-        color: white;
-        font-size: 24px;
-        font-weight: bold;
-    }
-    
-    .student-card h3 {
-        margin-bottom: 10px;
-        color: #333;
-    }
-    
-    .student-details {
-        margin-bottom: 15px;
-    }
-    
-    .student-details span {
-        display: block;
-        font-size: 12px;
-        color: #666;
-        margin: 5px 0;
-    }
-    
-    .student-details i {
-        width: 16px;
-        color: #3498db;
-        margin-right: 5px;
-    }
-    
-    .btn-view {
-        background: #3498db;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background 0.3s;
-    }
-    
-    .btn-view:hover {
-        background: #2980b9;
-    }
-    
-    .dashboard-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 15px;
-        margin: 20px 0;
-    }
-    
-    .stat-item {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .stat-item i {
-        font-size: 24px;
-        color: #3498db;
-    }
-    
-    .recent-submissions {
-        margin: 20px 0;
-    }
-    
-    .submission-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px;
-        border-bottom: 1px solid #eee;
-    }
-    
-    .submission-item:last-child {
-        border-bottom: none;
-    }
-    
-    .submission-status {
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-    }
-    
-    .submission-status.graded {
-        background: #d4edda;
-        color: #155724;
-    }
-    
-    .submission-status.pending {
-        background: #fff3cd;
-        color: #856404;
-    }
-    
-    .attendance-detail {
-        margin: 20px 0;
-    }
-    
-    .attendance-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        margin-top: 10px;
-    }
-    
-    .detail-item {
-        background: #f8f9fa;
-        padding: 10px;
-        border-radius: 4px;
-    }
-    
-    .detail-item .label {
-        color: #666;
-        font-size: 12px;
-        display: block;
-    }
-    
-    .detail-item .value {
-        font-size: 18px;
-        font-weight: bold;
-        color: #333;
-    }
-    
-    .detail-item .value.present {
-        color: #27ae60;
-    }
-    
-    .detail-item .value.absent {
-        color: #e74c3c;
-    }
-    
-    .detail-item .value.late {
-        color: #f39c12;
-    }
-    
-    .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 20px;
-    }
-    
-    .no-results {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 40px;
-        color: #999;
-    }
-`;
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (errorDiv.parentElement) {
+            errorDiv.remove();
+        }
+    }, 5000);
+}S
