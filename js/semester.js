@@ -1,4 +1,5 @@
 // js/semester.js - Complete Semester Page Functionality
+// CORRECTED VERSION with proper attendance calculation
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Semester page loaded');
@@ -17,9 +18,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Display class info
-    document.getElementById('classValue').textContent = className;
-    document.getElementById('semesterValue').textContent = semester;
-    document.getElementById('className').innerHTML = `Class ${className} - Semester ${semester}`;
+    const classValueEl = document.getElementById('classValue');
+    const semesterValueEl = document.getElementById('semesterValue');
+    const classNameEl = document.getElementById('className');
+    
+    if (classValueEl) classValueEl.textContent = className;
+    if (semesterValueEl) semesterValueEl.textContent = semester;
+    if (classNameEl) classNameEl.innerHTML = `Class ${className} - Semester ${semester}`;
     
     // Load students
     loadStudents(className, semester);
@@ -225,17 +230,70 @@ window.viewStudentDashboard = async function(studentId) {
     }
 }
 
+// ============================================
+// LOAD STUDENT DASHBOARD - FIXED ATTENDANCE CALCULATION
+// ============================================
+
 async function loadStudentDashboard(student) {
     const dashboard = document.getElementById('studentDashboard');
     
     try {
-        // Load attendance summary
-        const attendanceDoc = await db.collection('attendance_summary').doc(student.id).get();
-        const attendance = attendanceDoc.exists ? attendanceDoc.data() : { 
-            percentage: 0, 
-            present: 0, 
-            totalClasses: 0 
-        };
+        // Try to load from attendance_summary first (faster) - like in attendance.js
+        const summaryDoc = await db.collection('attendance_summary').doc(student.id).get();
+        
+        let totalClasses = 0;
+        let present = 0;
+        let absent = 0;
+        let late = 0;
+        let percentage = 0;
+        
+        if (summaryDoc.exists) {
+            // Use summary data if available (like attendance.js)
+            console.log('Found attendance summary for student');
+            const summary = summaryDoc.data();
+            totalClasses = summary.totalClasses || 0;
+            present = summary.present || 0;
+            absent = summary.absent || 0;
+            late = summary.late || 0;
+            
+            // Calculate percentage the same way as attendance.js (present/total)
+            percentage = totalClasses > 0 ? ((present / totalClasses) * 100).toFixed(1) : 0;
+            
+        } else {
+            // If no summary, load from attendance records (like loadAttendanceFromRecords)
+            console.log('No summary found, loading from attendance records');
+            
+            const snapshot = await db.collection('attendance')
+                .where('studentName', '==', student.name)
+                .where('class', '==', student.class)
+                .where('semester', '==', student.semester)
+                .get();
+            
+            console.log(`Found ${snapshot.size} attendance records`);
+            
+            if (!snapshot.empty) {
+                // Calculate statistics from records (like attendance.js)
+                snapshot.forEach(doc => {
+                    const record = doc.data();
+                    totalClasses++;
+                    
+                    switch(record.status) {
+                        case 'present':
+                            present++;
+                            break;
+                        case 'absent':
+                            absent++;
+                            break;
+                        case 'late':
+                            late++;
+                            break;
+                    }
+                });
+                
+                // Calculate percentage exactly like attendance.js (present/total)
+                percentage = totalClasses > 0 ? ((present / totalClasses) * 100).toFixed(1) : 0;
+            }
+        }
         
         // Load submissions
         const submissionsSnapshot = await db.collection('submissions')
@@ -271,7 +329,7 @@ async function loadStudentDashboard(student) {
                 <div class="stat-item">
                     <i class="fas fa-calendar-check"></i>
                     <div>
-                        <span class="stat-value">${attendance.percentage || 0}%</span>
+                        <span class="stat-value">${percentage}%</span>
                         <span class="stat-label">Attendance</span>
                     </div>
                 </div>
@@ -297,14 +355,16 @@ async function loadStudentDashboard(student) {
                     <div class="submission-list">
                         ${submissions.map(sub => {
                             const date = sub.submittedAt?.toDate?.() || new Date();
+                            const assignmentId = sub.assignmentId || 'Unknown';
+                            const marks = sub.marks;
                             return `
                                 <div class="submission-item">
                                     <div class="submission-info">
-                                        <span class="assignment-id">Assignment: ${sub.assignmentId}</span>
+                                        <span class="assignment-id">Assignment: ${assignmentId}</span>
                                         <span class="submission-date">${date.toLocaleDateString()}</span>
                                     </div>
-                                    <div class="submission-status ${sub.marks ? 'graded' : 'pending'}">
-                                        ${sub.marks ? `Marks: ${sub.marks}` : 'Pending'}
+                                    <div class="submission-status ${marks ? 'graded' : 'pending'}">
+                                        ${marks ? `Marks: ${marks}` : 'Pending'}
                                     </div>
                                 </div>
                             `;
@@ -318,20 +378,23 @@ async function loadStudentDashboard(student) {
                 <div class="attendance-grid">
                     <div class="detail-item">
                         <span class="label">Total Classes:</span>
-                        <span class="value">${attendance.totalClasses || 0}</span>
+                        <span class="value">${totalClasses}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Present:</span>
-                        <span class="value present">${attendance.present || 0}</span>
+                        <span class="value present">${present}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Absent:</span>
-                        <span class="value absent">${attendance.absent || 0}</span>
+                        <span class="value absent">${absent}</span>
                     </div>
                     <div class="detail-item">
                         <span class="label">Late:</span>
-                        <span class="value late">${attendance.late || 0}</span>
+                        <span class="value late">${late}</span>
                     </div>
+                </div>
+                <div style="margin-top: 10px; padding: 8px; background: #e8f4fd; border-radius: 4px; text-align: center;">
+                    <strong>Attendance Percentage: ${percentage}% (Present/Total Classes)</strong>
                 </div>
             </div>
             
@@ -389,184 +452,3 @@ function closeModal() {
         modal.style.display = 'none';
     }
 }
-
-// ============================================
-// ADD THESE STYLES TO YOUR CSS IF NOT PRESENT
-// ============================================
-
-// You can add these styles to your style.css file
-const additionalStyles = `
-    .student-card {
-        background: white;
-        border-radius: 8px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        transition: transform 0.3s;
-    }
-    
-    .student-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-    }
-    
-    .student-avatar {
-        width: 80px;
-        height: 80px;
-        background: #3498db;
-        border-radius: 50%;
-        margin: 0 auto 15px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .avatar-initials {
-        color: white;
-        font-size: 24px;
-        font-weight: bold;
-    }
-    
-    .student-card h3 {
-        margin-bottom: 10px;
-        color: #333;
-    }
-    
-    .student-details {
-        margin-bottom: 15px;
-    }
-    
-    .student-details span {
-        display: block;
-        font-size: 12px;
-        color: #666;
-        margin: 5px 0;
-    }
-    
-    .student-details i {
-        width: 16px;
-        color: #3498db;
-        margin-right: 5px;
-    }
-    
-    .btn-view {
-        background: #3498db;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background 0.3s;
-    }
-    
-    .btn-view:hover {
-        background: #2980b9;
-    }
-    
-    .dashboard-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 15px;
-        margin: 20px 0;
-    }
-    
-    .stat-item {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .stat-item i {
-        font-size: 24px;
-        color: #3498db;
-    }
-    
-    .recent-submissions {
-        margin: 20px 0;
-    }
-    
-    .submission-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px;
-        border-bottom: 1px solid #eee;
-    }
-    
-    .submission-item:last-child {
-        border-bottom: none;
-    }
-    
-    .submission-status {
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-    }
-    
-    .submission-status.graded {
-        background: #d4edda;
-        color: #155724;
-    }
-    
-    .submission-status.pending {
-        background: #fff3cd;
-        color: #856404;
-    }
-    
-    .attendance-detail {
-        margin: 20px 0;
-    }
-    
-    .attendance-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        margin-top: 10px;
-    }
-    
-    .detail-item {
-        background: #f8f9fa;
-        padding: 10px;
-        border-radius: 4px;
-    }
-    
-    .detail-item .label {
-        color: #666;
-        font-size: 12px;
-        display: block;
-    }
-    
-    .detail-item .value {
-        font-size: 18px;
-        font-weight: bold;
-        color: #333;
-    }
-    
-    .detail-item .value.present {
-        color: #27ae60;
-    }
-    
-    .detail-item .value.absent {
-        color: #e74c3c;
-    }
-    
-    .detail-item .value.late {
-        color: #f39c12;
-    }
-    
-    .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 20px;
-    }
-    
-    .no-results {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 40px;
-        color: #999;
-    }
-`;
