@@ -1,7 +1,7 @@
 // js/index.js - Complete Home Page Functionality
 
 // Google Apps Script Web App URL - REPLACE WITH YOUR DEPLOYED URL
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzgsk-8tLfMRmllVkzLlia1k9XOGL3phupnwxoSQktAYrPGEc9QWtp7i6AaxZdK0Add/exec';
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Home page loaded');
