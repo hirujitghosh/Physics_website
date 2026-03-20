@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (attendanceBtn) {
         attendanceBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            window.location.href = `admin.html?tab=attendance&class=${className}&semester=${semester}`;
+            window.location.href = `https://physics-learning-space.netlify.app/attendance`;
         });
     }
     
