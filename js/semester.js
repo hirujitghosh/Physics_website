@@ -397,7 +397,7 @@ async function loadStudentDashboard(student) {
         dashboard.innerHTML = '<p class="error">Error loading student data</p>';
     }
 }
-}// ============================================
+// ============================================
 // DOWNLOAD STUDENT LIST AS CSV
 // ============================================
 
