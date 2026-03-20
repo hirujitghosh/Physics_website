@@ -220,55 +220,62 @@ async function showStudentDashboard(studentId) {
             .limit(5)
             .get();
         
-        // Fetch attendance for this student - USING STUDENT NAME, CLASS, AND SEMESTER
-        // This matches the attendance.js approach
-        const attendanceSnapshot = await db.collection('attendance')
-            .where('studentName', '==', studentName)
-            .where('class', '==', className)
-            .where('semester', '==', semesterValue)
-            .orderBy('date', 'desc')
-            .limit(30)
-            .get();
+        // Calculate submission stats
+        const totalSubmissions = submissionsSnapshot.size;
+        const gradedSubmissions = submissionsSnapshot.docs.filter(doc => doc.data().status === 'graded').length;
+        const pendingSubmissions = submissionsSnapshot.docs.filter(doc => doc.data().status === 'pending').length;
         
-        // Also try to get from attendance_summary if available (faster)
+        // ===== ATTENDANCE CALCULATION - EXACTLY LIKE attendance.js =====
+        console.log('Loading attendance data for:', studentName, className, semesterValue);
+        
         let totalClasses = 0;
         let presentClasses = 0;
         let absentClasses = 0;
         let lateClasses = 0;
         
-        // Try summary first
-        const summaryDoc = await db.collection('attendance_summary').doc(studentId).get();
-        
-        if (summaryDoc.exists) {
-            console.log('Found attendance summary');
-            const summary = summaryDoc.data();
-            totalClasses = summary.totalClasses || 0;
-            presentClasses = summary.present || 0;
-            absentClasses = summary.absent || 0;
-            lateClasses = summary.late || 0;
-        } else if (!attendanceSnapshot.empty) {
-            // Calculate from attendance records
-            console.log(`Found ${attendanceSnapshot.size} attendance records`);
+        // Try attendance_summary first (same as attendance.js)
+        try {
+            const summaryDoc = await db.collection('attendance_summary').doc(studentId).get();
             
-            attendanceSnapshot.forEach(doc => {
-                totalClasses++;
-                const status = doc.data().status;
-                if (status === 'present') presentClasses++;
-                else if (status === 'absent') absentClasses++;
-                else if (status === 'late') lateClasses++;
-            });
-        } else {
-            console.log('No attendance records found');
+            if (summaryDoc.exists) {
+                console.log('Found attendance summary');
+                const summary = summaryDoc.data();
+                totalClasses = summary.totalClasses || 0;
+                presentClasses = summary.present || 0;
+                absentClasses = summary.absent || 0;
+                lateClasses = summary.late || 0;
+            } else {
+                // If no summary, load from attendance records (same as attendance.js)
+                console.log('No summary found, checking attendance records');
+                
+                const attendanceSnapshot = await db.collection('attendance')
+                    .where('studentName', '==', studentName)
+                    .where('class', '==', className)
+                    .where('semester', '==', semesterValue)
+                    .orderBy('date', 'desc')
+                    .get();
+                
+                console.log(`Found ${attendanceSnapshot.size} attendance records`);
+                
+                if (!attendanceSnapshot.empty) {
+                    attendanceSnapshot.forEach(doc => {
+                        totalClasses++;
+                        const status = doc.data().status;
+                        if (status === 'present') presentClasses++;
+                        else if (status === 'absent') absentClasses++;
+                        else if (status === 'late') lateClasses++;
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error loading attendance:', error);
         }
         
+        // Calculate percentage (same as attendance.js)
         const attendancePercentage = totalClasses > 0 
-            ? Math.round((presentClasses / totalClasses) * 100) 
+            ? ((presentClasses / totalClasses) * 100).toFixed(1)
             : 0;
-        
-        // Calculate submission stats
-        const totalSubmissions = submissionsSnapshot.size;
-        const gradedSubmissions = submissionsSnapshot.docs.filter(doc => doc.data().status === 'graded').length;
-        const pendingSubmissions = submissionsSnapshot.docs.filter(doc => doc.data().status === 'pending').length;
+        // ===== END OF ATTENDANCE CALCULATION =====
         
         // Build dashboard HTML
         let dashboardHtml = `
