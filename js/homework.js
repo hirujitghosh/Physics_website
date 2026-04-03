@@ -1,4 +1,4 @@
-// homework.js - Complete working version with Firestore save
+// homework.js - Fixed with form submission method (no CORS issues)
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Homework page loaded');
@@ -34,6 +34,26 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('click', (e) => {
         if (e.target.classList.contains('modal')) {
             closeModal();
+        }
+    });
+    
+    // Listen for message from iframe (for response)
+    window.addEventListener('message', function(event) {
+        console.log('Message received:', event.data);
+        try {
+            const data = JSON.parse(event.data);
+            if (data.success) {
+                document.getElementById('submissionForm').style.display = 'none';
+                document.getElementById('submissionSuccess').style.display = 'block';
+                document.getElementById('progressBar').style.display = 'none';
+            } else {
+                alert('Upload failed: ' + data.message);
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('submitBtn').innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
+                document.getElementById('progressBar').style.display = 'none';
+            }
+        } catch(e) {
+            console.log('Non-JSON message:', event.data);
         }
     });
 });
@@ -300,7 +320,7 @@ function validateForm() {
 }
 
 // ============================================
-// HANDLE SUBMISSION - WITH FIRESTORE SAVE
+// HANDLE SUBMISSION - USING IFRAME (NO CORS)
 // ============================================
 
 async function handleSubmission(e) {
@@ -320,10 +340,10 @@ async function handleSubmission(e) {
     const progressFill = document.getElementById('progressFill');
 
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Uploading...';
+    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Preparing...';
     progressBar.style.display = 'block';
-    progressFill.style.width = '10%';
-    progressFill.textContent = '10%';
+    progressFill.style.width = '20%';
+    progressFill.textContent = '20%';
 
     try {
         // Get student info
@@ -336,100 +356,117 @@ async function handleSubmission(e) {
         const student = studentDoc.data();
         const assignment = allAssignments.find(a => a.id === assignmentId);
 
-        progressFill.style.width = '20%';
-        progressFill.textContent = '20%';
-
-        // Convert file to Base64
-        const base64 = await toBase64(selectedFile);
-        const base64Data = base64.split(',')[1];
-
         progressFill.style.width = '40%';
         progressFill.textContent = '40%';
 
-        // Send to Apps Script
-        const payload = {
+        // Create a temporary form for submission (bypasses CORS)
+        const tempForm = document.createElement('form');
+        tempForm.method = 'POST';
+        tempForm.action = APPS_SCRIPT_URL;
+        tempForm.target = 'upload_iframe';
+        tempForm.enctype = 'multipart/form-data';
+        tempForm.style.display = 'none';
+
+        // Add form fields
+        const fields = {
             assignmentId: assignmentId,
             studentName: student.name,
             studentClass: student.class,
             studentSemester: student.semester,
             fileName: selectedFile.name,
-            contentType: selectedFile.type,
-            file: base64Data,
-            comments: comments || ''
-        };
-
-        const res = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-        }
-
-        const result = await res.json();
-        console.log('Apps Script response:', result);
-
-        if (!result.success) {
-            throw new Error(result.message || 'Upload failed');
-        }
-
-        progressFill.style.width = '70%';
-        progressFill.textContent = '70%';
-
-        // ===== SAVE TO FIRESTORE =====
-        const submissionData = {
-            assignmentId: assignmentId,
-            assignmentTitle: assignment?.title || 'Unknown',
-            studentId: studentId,
-            studentName: student.name,
-            studentClass: student.class,
-            studentSemester: student.semester,
-            fileName: selectedFile.name,
-            fileSize: selectedFile.size,
-            fileUrl: result.url,
-            fileId: result.fileId,
             comments: comments || '',
-            status: 'submitted',
-            submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+            file: selectedFile
         };
 
-        const docRef = await db.collection('submissions').add(submissionData);
-        console.log('✅ Submission saved to Firestore with ID:', docRef.id);
-        // ===== END SAVE =====
+        for (const [key, value] of Object.entries(fields)) {
+            const input = document.createElement('input');
+            input.type = key === 'file' ? 'file' : 'text';
+            input.name = key;
+            
+            if (key === 'file') {
+                // For file input, we need to use FileList
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(value);
+                input.files = dataTransfer.files;
+            } else {
+                input.value = value;
+            }
+            
+            tempForm.appendChild(input);
+        }
 
-        progressFill.style.width = '100%';
-        progressFill.textContent = '100%';
+        // Create iframe if not exists
+        let iframe = document.getElementById('upload_iframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'upload_iframe';
+            iframe.name = 'upload_iframe';
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+        }
 
-        // Hide form and show success
-        document.getElementById('submissionForm').style.display = 'none';
-        document.getElementById('submissionSuccess').style.display = 'block';
+        progressFill.style.width = '60%';
+        progressFill.textContent = '60%';
+        submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Uploading...';
+
+        // Submit the form
+        document.body.appendChild(tempForm);
+        tempForm.submit();
+
+        // Wait for iframe to load (response)
+        iframe.onload = async function() {
+            // Save to Firestore after successful upload
+            progressFill.style.width = '80%';
+            progressFill.textContent = '80%';
+
+            const submissionData = {
+                assignmentId: assignmentId,
+                assignmentTitle: assignment?.title || 'Unknown',
+                studentId: studentId,
+                studentName: student.name,
+                studentClass: student.class,
+                studentSemester: student.semester,
+                fileName: selectedFile.name,
+                fileSize: selectedFile.size,
+                comments: comments || '',
+                status: 'submitted',
+                submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            await db.collection('submissions').add(submissionData);
+            console.log('✅ Submission saved to Firestore');
+
+            progressFill.style.width = '100%';
+            progressFill.textContent = '100%';
+
+            // Clean up
+            tempForm.remove();
+            
+            // Show success
+            document.getElementById('submissionForm').style.display = 'none';
+            document.getElementById('submissionSuccess').style.display = 'block';
+            progressBar.style.display = 'none';
+            
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
+        };
+
+        iframe.onerror = function() {
+            throw new Error('Upload failed');
+        };
 
     } catch (err) {
         console.error('Submission error:', err);
         alert('Upload failed: ' + err.message);
-        progressBar.style.display = 'none';
-    } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
+        progressBar.style.display = 'none';
     }
 }
 
 // ============================================
 // UTILITY FUNCTIONS
 // ============================================
-
-function toBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
-}
 
 function resetForm() {
     document.getElementById('submissionForm').reset();
