@@ -1,4 +1,4 @@
-// homework.js - Updated to match your Apps Script response structure
+// homework.js - Complete working version with Firestore save
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Homework page loaded');
@@ -300,7 +300,7 @@ function validateForm() {
 }
 
 // ============================================
-// HANDLE SUBMISSION - MATCHES YOUR APPS SCRIPT
+// HANDLE SUBMISSION - WITH FIRESTORE SAVE
 // ============================================
 
 async function handleSubmission(e) {
@@ -320,10 +320,10 @@ async function handleSubmission(e) {
     const progressFill = document.getElementById('progressFill');
 
     submitBtn.disabled = true;
-    submitBtn.innerHTML = 'Uploading...';
+    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Uploading...';
     progressBar.style.display = 'block';
     progressFill.style.width = '10%';
-    progressFill.textContent = '10% - Preparing...';
+    progressFill.textContent = '10%';
 
     try {
         // Get student info
@@ -337,16 +337,16 @@ async function handleSubmission(e) {
         const assignment = allAssignments.find(a => a.id === assignmentId);
 
         progressFill.style.width = '20%';
-        progressFill.textContent = '20% - Student verified';
+        progressFill.textContent = '20%';
 
-        // Convert file to Base64 (remove data:application/pdf;base64, prefix)
+        // Convert file to Base64
         const base64 = await toBase64(selectedFile);
         const base64Data = base64.split(',')[1];
 
         progressFill.style.width = '40%';
-        progressFill.textContent = '40% - File converted';
+        progressFill.textContent = '40%';
 
-        // Send to Apps Script - matches your expected payload
+        // Send to Apps Script
         const payload = {
             assignmentId: assignmentId,
             studentName: student.name,
@@ -378,7 +378,7 @@ async function handleSubmission(e) {
         }
 
         progressFill.style.width = '70%';
-        progressFill.textContent = '70% - Uploaded to Google Drive';
+        progressFill.textContent = '70%';
 
         // ===== SAVE TO FIRESTORE =====
         const submissionData = {
@@ -390,19 +390,19 @@ async function handleSubmission(e) {
             studentSemester: student.semester,
             fileName: selectedFile.name,
             fileSize: selectedFile.size,
-            fileUrl: result.url,        // Note: result.url (not result.fileUrl)
+            fileUrl: result.url,
             fileId: result.fileId,
             comments: comments || '',
             status: 'submitted',
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        await db.collection('submissions').add(submissionData);
-        console.log('✅ Submission saved to Firestore');
+        const docRef = await db.collection('submissions').add(submissionData);
+        console.log('✅ Submission saved to Firestore with ID:', docRef.id);
         // ===== END SAVE =====
 
         progressFill.style.width = '100%';
-        progressFill.textContent = '100% - Complete!';
+        progressFill.textContent = '100%';
 
         // Hide form and show success
         document.getElementById('submissionForm').style.display = 'none';
@@ -411,9 +411,10 @@ async function handleSubmission(e) {
     } catch (err) {
         console.error('Submission error:', err);
         alert('Upload failed: ' + err.message);
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Submit Assignment';
         progressBar.style.display = 'none';
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
     }
 }
 
@@ -439,8 +440,6 @@ function resetForm() {
     document.getElementById('progressBar').style.display = 'none';
     document.getElementById('submitBtn').disabled = true;
     selectedFile = null;
-    
-    document.querySelectorAll('.dynamic-hidden').forEach(el => el.remove());
 }
 
 window.closeModal = function() {
