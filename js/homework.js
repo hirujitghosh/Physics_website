@@ -1,4 +1,4 @@
-// homework.js - WORKING VERSION with iframe method
+// homework.js - Updated to match your Apps Script response structure
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Homework page loaded');
@@ -41,8 +41,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // Global variables
 let allAssignments = [];
 let selectedFile = null;
-
-
 
 // ============================================
 // SETUP FILE UPLOAD
@@ -302,7 +300,7 @@ function validateForm() {
 }
 
 // ============================================
-// HANDLE SUBMISSION - USING IFRAME METHOD
+// HANDLE SUBMISSION - MATCHES YOUR APPS SCRIPT
 // ============================================
 
 async function handleSubmission(e) {
@@ -324,47 +322,94 @@ async function handleSubmission(e) {
     submitBtn.disabled = true;
     submitBtn.innerHTML = 'Uploading...';
     progressBar.style.display = 'block';
+    progressFill.style.width = '10%';
+    progressFill.textContent = '10% - Preparing...';
 
     try {
         // Get student info
         const studentDoc = await db.collection('students').doc(studentId).get();
+        
+        if (!studentDoc.exists) {
+            throw new Error('Student not found');
+        }
+        
         const student = studentDoc.data();
+        const assignment = allAssignments.find(a => a.id === assignmentId);
 
-        progressFill.style.width = '30%';
-        progressFill.textContent = 'Preparing file...';
+        progressFill.style.width = '20%';
+        progressFill.textContent = '20% - Student verified';
 
-        // Convert file to Base64
+        // Convert file to Base64 (remove data:application/pdf;base64, prefix)
         const base64 = await toBase64(selectedFile);
+        const base64Data = base64.split(',')[1];
 
-        progressFill.style.width = '60%';
-        progressFill.textContent = 'Uploading...';
+        progressFill.style.width = '40%';
+        progressFill.textContent = '40% - File converted';
 
-        // Send to Apps Script
+        // Send to Apps Script - matches your expected payload
+        const payload = {
+            assignmentId: assignmentId,
+            studentName: student.name,
+            studentClass: student.class,
+            studentSemester: student.semester,
+            fileName: selectedFile.name,
+            contentType: selectedFile.type,
+            file: base64Data,
+            comments: comments || ''
+        };
+
         const res = await fetch(APPS_SCRIPT_URL, {
-            method: "POST",
-            body: JSON.stringify({
-                file: base64.split(',')[1], // remove prefix
-                fileName: selectedFile.name,
-                contentType: selectedFile.type,
-                assignmentId,
-                studentName: student.name,
-                studentClass: student.class,
-                studentSemester: student.semester,
-                comments: comments || ''
-            })
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
         });
 
-        const result = await res.json();
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
 
-        if (!result.success) throw new Error(result.message);
+        const result = await res.json();
+        console.log('Apps Script response:', result);
+
+        if (!result.success) {
+            throw new Error(result.message || 'Upload failed');
+        }
+
+        progressFill.style.width = '70%';
+        progressFill.textContent = '70% - Uploaded to Google Drive';
+
+        // ===== SAVE TO FIRESTORE =====
+        const submissionData = {
+            assignmentId: assignmentId,
+            assignmentTitle: assignment?.title || 'Unknown',
+            studentId: studentId,
+            studentName: student.name,
+            studentClass: student.class,
+            studentSemester: student.semester,
+            fileName: selectedFile.name,
+            fileSize: selectedFile.size,
+            fileUrl: result.url,        // Note: result.url (not result.fileUrl)
+            fileId: result.fileId,
+            comments: comments || '',
+            status: 'submitted',
+            submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('submissions').add(submissionData);
+        console.log('✅ Submission saved to Firestore');
+        // ===== END SAVE =====
 
         progressFill.style.width = '100%';
-        progressFill.textContent = 'Done';
+        progressFill.textContent = '100% - Complete!';
 
+        // Hide form and show success
         document.getElementById('submissionForm').style.display = 'none';
         document.getElementById('submissionSuccess').style.display = 'block';
 
     } catch (err) {
+        console.error('Submission error:', err);
         alert('Upload failed: ' + err.message);
         submitBtn.disabled = false;
         submitBtn.innerHTML = 'Submit Assignment';
@@ -373,8 +418,9 @@ async function handleSubmission(e) {
 }
 
 // ============================================
-// MODAL HELPER
+// UTILITY FUNCTIONS
 // ============================================
+
 function toBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -394,7 +440,6 @@ function resetForm() {
     document.getElementById('submitBtn').disabled = true;
     selectedFile = null;
     
-    // Remove any dynamically added hidden fields
     document.querySelectorAll('.dynamic-hidden').forEach(el => el.remove());
 }
 
