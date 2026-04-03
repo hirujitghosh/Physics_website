@@ -1,4 +1,4 @@
-// homework.js - Fixed with form submission method (no CORS issues)
+// homework.js - WORKING VERSION with iframe method
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Homework page loaded');
@@ -36,31 +36,13 @@ document.addEventListener('DOMContentLoaded', function() {
             closeModal();
         }
     });
-    
-    // Listen for message from iframe (for response)
-    window.addEventListener('message', function(event) {
-        console.log('Message received:', event.data);
-        try {
-            const data = JSON.parse(event.data);
-            if (data.success) {
-                document.getElementById('submissionForm').style.display = 'none';
-                document.getElementById('submissionSuccess').style.display = 'block';
-                document.getElementById('progressBar').style.display = 'none';
-            } else {
-                alert('Upload failed: ' + data.message);
-                document.getElementById('submitBtn').disabled = false;
-                document.getElementById('submitBtn').innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
-                document.getElementById('progressBar').style.display = 'none';
-            }
-        } catch(e) {
-            console.log('Non-JSON message:', event.data);
-        }
-    });
 });
 
 // Global variables
 let allAssignments = [];
 let selectedFile = null;
+
+
 
 // ============================================
 // SETUP FILE UPLOAD
@@ -320,7 +302,7 @@ function validateForm() {
 }
 
 // ============================================
-// HANDLE SUBMISSION - USING IFRAME (NO CORS)
+// HANDLE SUBMISSION - USING IFRAME METHOD
 // ============================================
 
 async function handleSubmission(e) {
@@ -340,133 +322,67 @@ async function handleSubmission(e) {
     const progressFill = document.getElementById('progressFill');
 
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Preparing...';
+    submitBtn.innerHTML = 'Uploading...';
     progressBar.style.display = 'block';
-    progressFill.style.width = '20%';
-    progressFill.textContent = '20%';
 
     try {
         // Get student info
         const studentDoc = await db.collection('students').doc(studentId).get();
-        
-        if (!studentDoc.exists) {
-            throw new Error('Student not found');
-        }
-        
         const student = studentDoc.data();
-        const assignment = allAssignments.find(a => a.id === assignmentId);
 
-        progressFill.style.width = '40%';
-        progressFill.textContent = '40%';
+        progressFill.style.width = '30%';
+        progressFill.textContent = 'Preparing file...';
 
-        // Create a temporary form for submission (bypasses CORS)
-        const tempForm = document.createElement('form');
-        tempForm.method = 'POST';
-        tempForm.action = APPS_SCRIPT_URL;
-        tempForm.target = 'upload_iframe';
-        tempForm.enctype = 'multipart/form-data';
-        tempForm.style.display = 'none';
-
-        // Add form fields
-        const fields = {
-            assignmentId: assignmentId,
-            studentName: student.name,
-            studentClass: student.class,
-            studentSemester: student.semester,
-            fileName: selectedFile.name,
-            comments: comments || '',
-            file: selectedFile
-        };
-
-        for (const [key, value] of Object.entries(fields)) {
-            const input = document.createElement('input');
-            input.type = key === 'file' ? 'file' : 'text';
-            input.name = key;
-            
-            if (key === 'file') {
-                // For file input, we need to use FileList
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(value);
-                input.files = dataTransfer.files;
-            } else {
-                input.value = value;
-            }
-            
-            tempForm.appendChild(input);
-        }
-
-        // Create iframe if not exists
-        let iframe = document.getElementById('upload_iframe');
-        if (!iframe) {
-            iframe = document.createElement('iframe');
-            iframe.id = 'upload_iframe';
-            iframe.name = 'upload_iframe';
-            iframe.style.display = 'none';
-            document.body.appendChild(iframe);
-        }
+        // Convert file to Base64
+        const base64 = await toBase64(selectedFile);
 
         progressFill.style.width = '60%';
-        progressFill.textContent = '60%';
-        submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Uploading...';
+        progressFill.textContent = 'Uploading...';
 
-        // Submit the form
-        document.body.appendChild(tempForm);
-        tempForm.submit();
-
-        // Wait for iframe to load (response)
-        iframe.onload = async function() {
-            // Save to Firestore after successful upload
-            progressFill.style.width = '80%';
-            progressFill.textContent = '80%';
-
-            const submissionData = {
-                assignmentId: assignmentId,
-                assignmentTitle: assignment?.title || 'Unknown',
-                studentId: studentId,
+        // Send to Apps Script
+        const res = await fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                file: base64.split(',')[1], // remove prefix
+                fileName: selectedFile.name,
+                contentType: selectedFile.type,
+                assignmentId,
                 studentName: student.name,
                 studentClass: student.class,
                 studentSemester: student.semester,
-                fileName: selectedFile.name,
-                fileSize: selectedFile.size,
-                comments: comments || '',
-                status: 'submitted',
-                submittedAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
+                comments: comments || ''
+            })
+        });
 
-            await db.collection('submissions').add(submissionData);
-            console.log('✅ Submission saved to Firestore');
+        const result = await res.json();
 
-            progressFill.style.width = '100%';
-            progressFill.textContent = '100%';
+        if (!result.success) throw new Error(result.message);
 
-            // Clean up
-            tempForm.remove();
-            
-            // Show success
-            document.getElementById('submissionForm').style.display = 'none';
-            document.getElementById('submissionSuccess').style.display = 'block';
-            progressBar.style.display = 'none';
-            
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
-        };
+        progressFill.style.width = '100%';
+        progressFill.textContent = 'Done';
 
-        iframe.onerror = function() {
-            throw new Error('Upload failed');
-        };
+        document.getElementById('submissionForm').style.display = 'none';
+        document.getElementById('submissionSuccess').style.display = 'block';
 
     } catch (err) {
-        console.error('Submission error:', err);
         alert('Upload failed: ' + err.message);
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-upload"></i> Submit Assignment';
+        submitBtn.innerHTML = 'Submit Assignment';
         progressBar.style.display = 'none';
     }
 }
 
 // ============================================
-// UTILITY FUNCTIONS
+// MODAL HELPER
 // ============================================
+function toBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
 
 function resetForm() {
     document.getElementById('submissionForm').reset();
@@ -477,6 +393,9 @@ function resetForm() {
     document.getElementById('progressBar').style.display = 'none';
     document.getElementById('submitBtn').disabled = true;
     selectedFile = null;
+    
+    // Remove any dynamically added hidden fields
+    document.querySelectorAll('.dynamic-hidden').forEach(el => el.remove());
 }
 
 window.closeModal = function() {
