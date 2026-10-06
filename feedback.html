@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anonymous Feedback - Physics Learning Space</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+/* ==== BASE ==== */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary-color:#2c3e50;--secondary-color:#3498db;--accent-color:#e74c3c;--success-color:#27ae60;--light-bg:#f8f9fa;--dark-text:#333;--light-text:#fff;--border-color:#e0e0e0;--border-radius:8px;--box-shadow:0 2px 10px rgba(0,0,0,.1);--transition:all .3s ease}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:var(--dark-text);background:var(--light-bg)}
+.container{max-width:900px;margin:0 auto;padding:0 20px}
+.navbar{background:var(--primary-color);color:var(--light-text);position:sticky;top:0;z-index:1000;box-shadow:0 2px 5px rgba(0,0,0,.1)}
+.nav-container{max-width:1200px;margin:0 auto;padding:1rem;display:flex;justify-content:space-between;align-items:center}
+.logo{display:flex;align-items:center;gap:.5rem;font-size:1.5rem;font-weight:bold}
+.logo i{color:var(--secondary-color)}
+.nav-menu{display:flex;list-style:none;gap:2rem}
+.nav-menu a{color:var(--light-text);text-decoration:none;padding:.5rem 1rem;border-radius:var(--border-radius);transition:var(--transition)}
+.nav-menu a:hover,.nav-menu a.active{background:var(--secondary-color)}
+.admin-link{background:var(--accent-color)}
+.hamburger{display:none;flex-direction:column;cursor:pointer}
+.hamburger span{width:25px;height:3px;background:var(--light-text);margin:2px 0}
+.btn{display:inline-block;padding:.8rem 2rem;border-radius:var(--border-radius);text-decoration:none;font-weight:bold;transition:var(--transition);border:none;cursor:pointer;font-size:1rem}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--box-shadow)}
+.btn-primary{background:var(--secondary-color);color:var(--light-text)}
+.btn-primary:hover{background:#2980b9}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.btn-outline{background:transparent;color:var(--secondary-color);border:2px solid var(--secondary-color)}
+.page-header{background:linear-gradient(135deg,var(--primary-color),var(--secondary-color));color:var(--light-text);text-align:center;padding:3rem 1rem}
+.page-header h1{font-size:2.5rem;margin-bottom:.5rem}
+.page-header p{font-size:1.1rem;opacity:.9}
+.footer{background:var(--primary-color);color:var(--light-text);padding:3rem 2rem 1rem;margin-top:4rem}
+.footer-content{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2rem;margin-bottom:2rem}
+.footer-section h4{margin-bottom:1rem}
+.footer-section ul{list-style:none}
+.footer-section ul li{margin-bottom:.5rem}
+.footer-section a{color:var(--light-text);text-decoration:none;opacity:.8;transition:var(--transition)}
+.footer-section a:hover{opacity:1}
+.footer-bottom{text-align:center;padding-top:2rem;border-top:1px solid rgba(255,255,255,.1)}
+
+/* ==== FEEDBACK PAGE ==== */
+.feedback-wrapper{padding:3rem 0}
+.anonymous-badge{display:inline-flex;align-items:center;gap:.5rem;background:#e8f4fd;color:#1976d2;padding:.5rem 1rem;border-radius:30px;font-size:.9rem;font-weight:600;margin-bottom:1.5rem}
+.feedback-card{background:#fff;border-radius:var(--border-radius);padding:2.5rem;box-shadow:var(--box-shadow)}
+.feedback-card h2{color:var(--primary-color);margin-bottom:.5rem;font-size:1.6rem}
+.feedback-card .subtitle{color:#666;font-size:.95rem;margin-bottom:2rem}
+.question{margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px dashed var(--border-color)}
+.question:last-of-type{border-bottom:none;padding-bottom:0}
+.question-label{display:block;font-weight:600;color:var(--primary-color);margin-bottom:.75rem;font-size:1rem}
+.question-label .required{color:var(--accent-color);margin-left:.25rem}
+.question-hint{display:block;font-size:.85rem;color:#888;font-weight:400;margin-top:.2rem}
+.star-rating{display:flex;gap:.5rem;margin:.5rem 0}
+.star-rating i{font-size:2rem;color:#ddd;cursor:pointer;transition:all .2s}
+.star-rating i.active,.star-rating i:hover{color:#f1c40f;transform:scale(1.1)}
+.rating-labels{display:flex;justify-content:space-between;font-size:.8rem;color:#888;max-width:260px}
+.radio-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-top:.5rem}
+.radio-option{display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;border:2px solid var(--border-color);border-radius:var(--border-radius);cursor:pointer;transition:var(--transition);background:#fafafa}
+.radio-option:hover{border-color:var(--secondary-color);background:#f0f8ff}
+.radio-option input[type="radio"]{accent-color:var(--secondary-color);cursor:pointer;width:18px;height:18px}
+.radio-option input[type="radio"]:checked + span{font-weight:600;color:var(--secondary-color)}
+.radio-option:has(input:checked){border-color:var(--secondary-color);background:#e8f4fd}
+textarea{width:100%;padding:.85rem;border:2px solid var(--border-color);border-radius:var(--border-radius);font-family:inherit;font-size:.95rem;resize:vertical;transition:var(--transition)}
+textarea:focus{outline:none;border-color:var(--secondary-color);box-shadow:0 0 0 3px rgba(52,152,219,.1)}
+.char-counter{display:block;text-align:right;font-size:.75rem;color:#999;margin-top:.25rem}
+.form-message{display:none;padding:1rem;border-radius:var(--border-radius);margin:1.5rem 0;text-align:center;font-size:.95rem}
+.form-message.error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb}
+.form-message.success{background:#d4edda;color:#155724;border:1px solid #c3e6cb}
+.form-actions{display:flex;justify-content:center;margin-top:2.5rem}
+.form-actions .btn{padding:1rem 3rem;font-size:1.05rem}
+.success-screen{text-align:center;padding:3rem 1rem}
+.success-screen i{font-size:5rem;color:var(--success-color);margin-bottom:1rem;animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(0)}80%{transform:scale(1.15)}100%{transform:scale(1)}}
+.success-screen h2{color:var(--primary-color);margin-bottom:.5rem;font-size:1.8rem}
+.success-screen p{color:#666;margin-bottom:2rem}
+.success-screen .btn{margin:0 .5rem}
+
+@media(max-width:768px){
+.hamburger{display:flex}
+.nav-menu{display:none;position:absolute;top:100%;left:0;right:0;background:var(--primary-color);flex-direction:column;padding:1rem;gap:.5rem}
+.nav-menu.active{display:flex}
+.page-header h1{font-size:1.8rem}
+.feedback-card{padding:1.5rem}
+.star-rating i{font-size:1.6rem}
+.radio-group{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body data-page="feedback">
+
+<nav class="navbar">
+  <div class="nav-container">
+    <div class="logo"><i class="fas fa-atom"></i><span>Physics Learning Space</span></div>
+    <ul class="nav-menu" id="nav-menu">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="index.html#classes">Classes</a></li>
+      <li><a href="homework.html">Homework</a></li>
+      <li><a href="attendance.html">Attendance</a></li>
+      <li><a href="feedback.html" class="active">Feedback</a></li>
+      <li><a href="admin.html" class="admin-link"><i class="fas fa-lock"></i> Admin</a></li>
+    </ul>
+    <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
+  </div>
+</nav>
+
+<section class="page-header">
+  <div class="header-content">
+    <h1>Share Your Feedback</h1>
+    <p>Help us improve your learning experience</p>
+  </div>
+</section>
+
+<section class="feedback-wrapper">
+  <div class="container">
+
+    <!-- FEEDBACK FORM -->
+    <div class="feedback-card" id="feedbackFormCard">
+      <div class="anonymous-badge">
+        <i class="fas fa-user-secret"></i> 100% Anonymous — No name, no login required
+      </div>
+
+      <h2>We'd love to hear from you 💬</h2>
+      <p class="subtitle">Your honest answers help us make this portal better. All responses are completely anonymous.</p>
+
+      <form id="anonymousFeedbackForm" novalidate>
+
+        <!-- Q1: Overall Star Rating -->
+        <div class="question">
+          <label class="question-label">
+            How would you rate your overall experience? <span class="required">*</span>
+          </label>
+          <div class="star-rating" id="overallStarRating">
+            <i class="far fa-star" data-rating="1"></i>
+            <i class="far fa-star" data-rating="2"></i>
+            <i class="far fa-star" data-rating="3"></i>
+            <i class="far fa-star" data-rating="4"></i>
+            <i class="far fa-star" data-rating="5"></i>
+          </div>
+          <input type="hidden" id="fbRating" value="0">
+          <div class="rating-labels"><span>Poor</span><span>Excellent</span></div>
+        </div>
+
+        <!-- Q2: Study Materials -->
+        <div class="question">
+          <label class="question-label">
+            How would you rate the study materials & notes? <span class="required">*</span>
+          </label>
+          <div class="radio-group">
+            <label class="radio-option"><input type="radio" name="materials" value="Excellent"><span>😍 Excellent</span></label>
+            <label class="radio-option"><input type="radio" name="materials" value="Good"><span>😊 Good</span></label>
+            <label class="radio-option"><input type="radio" name="materials" value="Average"><span>😐 Average</span></label>
+            <label class="radio-option"><input type="radio" name="materials" value="Poor"><span>😞 Poor</span></label>
+          </div>
+          <select id="fbMaterials" required hidden><option value=""></option>
+            <option value="Excellent">Excellent</option>
+            <option value="Good">Good</option>
+            <option value="Average">Average</option>
+            <option value="Poor">Poor</option>
+          </select>
+        </div>
+
+        <!-- Q3: Explanations Clarity -->
+        <div class="question">
+          <label class="question-label">
+            How clear are the teacher's explanations? <span class="required">*</span>
+          </label>
+          <div class="radio-group">
+            <label class="radio-option"><input type="radio" name="explanations" value="Very Clear"><span>🌟 Very Clear</span></label>
+            <label class="radio-option"><input type="radio" name="explanations" value="Clear"><span>✅ Clear</span></label>
+            <label class="radio-option"><input type="radio" name="explanations" value="Neutral"><span>➖ Neutral</span></label>
+            <label class="radio-option"><input type="radio" name="explanations" value="Unclear"><span>❓ Unclear</span></label>
+          </div>
+          <select id="fbExplanations" required hidden><option value=""></option>
+            <option value="Very Clear">Very Clear</option>
+            <option value="Clear">Clear</option>
+            <option value="Neutral">Neutral</option>
+            <option value="Unclear">Unclear</option>
+          </select>
+        </div>
+
+        <!-- Q4: Assignments -->
+        <div class="question">
+          <label class="question-label">
+            How helpful are the homework assignments? <span class="required">*</span>
+          </label>
+          <div class="radio-group">
+            <label class="radio-option"><input type="radio" name="assignments" value="Very Helpful"><span>💯 Very Helpful</span></label>
+            <label class="radio-option"><input type="radio" name="assignments" value="Helpful"><span>👍 Helpful</span></label>
+            <label class="radio-option"><input type="radio" name="assignments" value="Neutral"><span>➖ Neutral</span></label>
+            <label class="radio-option"><input type="radio" name="assignments" value="Not Helpful"><span>👎 Not Helpful</span></label>
+          </div>
+          <select id="fbAssignments" required hidden><option value=""></option>
+            <option value="Very Helpful">Very Helpful</option>
+            <option value="Helpful">Helpful</option>
+            <option value="Neutral">Neutral</option>
+            <option value="Not Helpful">Not Helpful</option>
+          </select>
+        </div>
+
+        <!-- Q5: Attendance System -->
+        <div class="question">
+          <label class="question-label">
+            How would you rate the attendance tracking system? <span class="required">*</span>
+          </label>
+          <div class="radio-group">
+            <label class="radio-option"><input type="radio" name="attendance" value="Excellent"><span>🌟 Excellent</span></label>
+            <label class="radio-option"><input type="radio" name="attendance" value="Good"><span>👍 Good</span></label>
+            <label class="radio-option"><input type="radio" name="attendance" value="Average"><span>😐 Average</span></label>
+            <label class="radio-option"><input type="radio" name="attendance" value="Poor"><span>😞 Poor</span></label>
+          </div>
+          <select id="fbAttendance" required hidden><option value=""></option>
+            <option value="Excellent">Excellent</option>
+            <option value="Good">Good</option>
+            <option value="Average">Average</option>
+            <option value="Poor">Poor</option>
+          </select>
+        </div>
+
+        <!-- Q6: Overall Experience -->
+        <div class="question">
+          <label class="question-label">
+            Overall, how has your learning experience been? <span class="required">*</span>
+          </label>
+          <div class="radio-group">
+            <label class="radio-option"><input type="radio" name="overall" value="Amazing"><span>🚀 Amazing</span></label>
+            <label class="radio-option"><input type="radio" name="overall" value="Good"><span>😊 Good</span></label>
+            <label class="radio-option"><input type="radio" name="overall" value="Okay"><span>🙂 Okay</span></label>
+            <label class="radio-option"><input type="radio" name="overall" value="Needs Improvement"><span>🔧 Needs Improvement</span></label>
+          </div>
+          <select id="fbOverall" required hidden><option value=""></option>
+            <option value="Amazing">Amazing</option>
+            <option value="Good">Good</option>
+            <option value="Okay">Okay</option>
+            <option value="Needs Improvement">Needs Improvement</option>
+          </select>
+        </div>
+
+        <!-- Q7: What did you like most? -->
+        <div class="question">
+          <label class="question-label" for="fbLiked">
+            What did you like most about the portal?
+            <span class="question-hint">Optional — but very helpful 💡</span>
+          </label>
+          <textarea id="fbLiked" rows="3" data-max="500" placeholder="E.g., The chapter notes were really clear, submitting homework was easy..."></textarea>
+          <span class="char-counter" id="fbLikedCount">0/500</span>
+        </div>
+
+        <!-- Q8: What could be improved? -->
+        <div class="question">
+          <label class="question-label" for="fbImprovements">
+            What could be improved?
+            <span class="question-hint">Be honest — this is anonymous 🤫</span>
+          </label>
+          <textarea id="fbImprovements" rows="3" data-max="500" placeholder="E.g., More practice problems, better video quality, add more examples..."></textarea>
+          <span class="char-counter" id="fbImprovementsCount">0/500</span>
+        </div>
+
+        <!-- Q9: Topics needed -->
+        <div class="question">
+          <label class="question-label" for="fbTopics">
+            Any physics topics you'd like more help with?
+            <span class="question-hint">Optional</span>
+          </label>
+          <textarea id="fbTopics" rows="2" data-max="300" placeholder="E.g., Rotational motion, Thermodynamics, Electromagnetic induction..."></textarea>
+          <span class="char-counter" id="fbTopicsCount">0/300</span>
+        </div>
+
+        <!-- Q10: Recommend -->
+        <div class="question">
+          <label class="question-label">
+            Would you recommend this portal to a friend? <span class="required">*</span>
+          </label>
+          <div class="radio-group">
+            <label class="radio-option"><input type="radio" name="recommend" value="Yes"><span>👍 Yes, definitely</span></label>
+            <label class="radio-option"><input type="radio" name="recommend" value="Maybe"><span>🤔 Maybe</span></label>
+            <label class="radio-option"><input type="radio" name="recommend" value="No"><span>👎 No</span></label>
+          </div>
+          <select id="fbRecommend" required hidden><option value=""></option>
+            <option value="Yes">Yes</option>
+            <option value="Maybe">Maybe</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+
+        <!-- Inline form message -->
+        <div class="form-message" id="feedbackFormMessage"></div>
+
+        <!-- Submit -->
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="feedbackSubmitBtn">
+            <i class="fas fa-paper-plane"></i> Submit Anonymous Feedback
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- SUCCESS SCREEN -->
+    <div class="feedback-card" id="feedbackSuccess" style="display:none;">
+      <div class="success-screen">
+        <i class="fas fa-check-circle"></i>
+        <h2>Thank you for your feedback! 🙏</h2>
+        <p>Your response has been recorded anonymously.<br>We truly appreciate you taking the time to help us improve.</p>
+        <button class="btn btn-primary" onclick="resetFeedbackForm()">
+          <i class="fas fa-plus"></i> Submit Another Response
+        </button>
+        <a href="index.html" class="btn btn-outline">
+          <i class="fas fa-home"></i> Back to Home
+        </a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer-content">
+    <div class="footer-section"><h4>Physics Learning Space</h4><p>Making physics accessible to everyone</p></div>
+    <div class="footer-section"><h4>Quick Links</h4><ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="index.html#classes">Classes</a></li>
+      <li><a href="homework.html">Homework</a></li>
+      <li><a href="attendance.html">Attendance</a></li>
+      <li><a href="feedback.html">Feedback</a></li>
+    </ul></div>
+    <div class="footer-section"><h4>Contact</h4>
+      <p><i class="fas fa-envelope"></i> teacher@physicsSpace.com</p>
+      <p><i class="fas fa-phone"></i> +91 9876543210</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2024 Physics Learning Space. All rights reserved.</p></div>
+</footer>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="shared.js"></script>
+<script>
+/* Sync hidden <select> values with radio buttons before submit */
+document.querySelectorAll('input[type="radio"]').forEach(radio => {
+  radio.addEventListener('change', e => {
+    const name = e.target.name;
+    const map = {
+      materials: 'fbMaterials',
+      explanations: 'fbExplanations',
+      assignments: 'fbAssignments',
+      attendance: 'fbAttendance',
+      overall: 'fbOverall',
+      recommend: 'fbRecommend'
+    };
+    const hiddenId = map[name];
+    if (hiddenId) document.getElementById(hiddenId).value = e.target.value;
+  });
+});
+</script>
+</body>
+</html>

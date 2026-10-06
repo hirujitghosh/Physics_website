@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Physics Learning Space</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+/* ==== BASE / SHARED CSS ==== */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary-color:#2c3e50;--secondary-color:#3498db;--accent-color:#e74c3c;--success-color:#27ae60;--warning-color:#f39c12;--light-bg:#f8f9fa;--dark-text:#333;--light-text:#fff;--border-color:#e0e0e0;--border-radius:8px;--box-shadow:0 2px 10px rgba(0,0,0,.1);--transition:all .3s ease}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:var(--dark-text);background:var(--light-bg)}
+.container{max-width:1200px;margin:0 auto;padding:0 20px}
+.navbar{background:var(--primary-color);color:var(--light-text);position:sticky;top:0;z-index:1000;box-shadow:0 2px 5px rgba(0,0,0,.1)}
+.nav-container{max-width:1200px;margin:0 auto;padding:1rem;display:flex;justify-content:space-between;align-items:center}
+.logo{display:flex;align-items:center;gap:.5rem;font-size:1.5rem;font-weight:bold}
+.logo i{color:var(--secondary-color)}
+.nav-menu{display:flex;list-style:none;gap:2rem}
+.nav-menu a{color:var(--light-text);text-decoration:none;padding:.5rem 1rem;border-radius:var(--border-radius);transition:var(--transition)}
+.nav-menu a:hover,.nav-menu a.active{background:var(--secondary-color)}
+.admin-link{background:var(--accent-color)}
+.hamburger{display:none;flex-direction:column;cursor:pointer}
+.hamburger span{width:25px;height:3px;background:var(--light-text);margin:2px 0;transition:.3s}
+.btn{display:inline-block;padding:.8rem 2rem;border-radius:var(--border-radius);text-decoration:none;font-weight:bold;transition:var(--transition);border:none;cursor:pointer}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--box-shadow)}
+.btn-primary{background:var(--secondary-color);color:var(--light-text)}
+.btn-primary:hover{background:#2980b9}
+.btn-secondary{background:transparent;color:var(--light-text);border:2px solid var(--light-text)}
+.btn-secondary:hover{background:rgba(255,255,255,.1)}
+.footer{background:var(--primary-color);color:var(--light-text);padding:3rem 2rem 1rem;margin-top:4rem}
+.footer-content{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2rem;margin-bottom:2rem}
+.footer-section h4{margin-bottom:1rem}
+.footer-section ul{list-style:none}
+.footer-section ul li{margin-bottom:.5rem}
+.footer-section a{color:var(--light-text);text-decoration:none;opacity:.8;transition:var(--transition)}
+.footer-section a:hover{opacity:1}
+.footer-bottom{text-align:center;padding-top:2rem;border-top:1px solid rgba(255,255,255,.1)}
+
+/* ==== HOME PAGE CSS ==== */
+.hero{background:linear-gradient(135deg,var(--primary-color),var(--secondary-color));color:var(--light-text);text-align:center;padding:4rem 2rem}
+.hero h1{font-size:2.5rem;margin-bottom:1rem}
+.hero p{font-size:1.2rem;margin-bottom:2rem}
+.hero-buttons{display:flex;gap:1rem;justify-content:center}
+.classes-section{max-width:1200px;margin:4rem auto;padding:0 2rem}
+.classes-section h2{text-align:center;margin-bottom:3rem;font-size:2rem;color:var(--primary-color)}
+.class-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:2rem}
+.class-card{background:#fff;border-radius:var(--border-radius);padding:2rem;box-shadow:var(--box-shadow);transition:var(--transition)}
+.class-card:hover{transform:translateY(-5px);box-shadow:0 5px 20px rgba(0,0,0,.15)}
+.class-header{text-align:center;margin-bottom:1.5rem}
+.class-header i{font-size:3rem;color:var(--secondary-color);margin-bottom:.5rem}
+.class-header h3{color:var(--primary-color)}
+.semester-list{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem}
+.semester-list.grid-4{grid-template-columns:repeat(4,1fr)}
+.semester-btn{display:block;padding:.5rem;background:var(--secondary-color);color:var(--light-text);text-decoration:none;text-align:center;border-radius:var(--border-radius);font-size:.9rem;transition:var(--transition)}
+.semester-btn:hover{background:var(--primary-color)}
+.how-it-works{background:var(--light-bg);padding:4rem 2rem}
+.how-it-works h2{text-align:center;margin-bottom:3rem;font-size:2rem;color:var(--primary-color)}
+.steps-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2rem}
+.step-card{text-align:center;padding:2rem;background:#fff;border-radius:var(--border-radius);position:relative;box-shadow:var(--box-shadow)}
+.step-number{width:40px;height:40px;background:var(--accent-color);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;position:absolute;top:-20px;left:50%;transform:translateX(-50%)}
+.step-card i{font-size:2.5rem;color:var(--secondary-color);margin:1rem 0}
+.stats-section{background:linear-gradient(135deg,var(--secondary-color),var(--primary-color));color:#fff;padding:3rem 2rem}
+.stats-container{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:2rem;text-align:center}
+.stat-number{font-size:2.5rem;font-weight:bold;margin-bottom:.5rem}
+
+/* Feedback CTA banner */
+.feedback-cta{background:#fff;padding:3rem 2rem;text-align:center;border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color)}
+.feedback-cta h2{color:var(--primary-color);margin-bottom:.75rem;font-size:1.8rem}
+.feedback-cta p{color:#666;max-width:600px;margin:0 auto 1.5rem}
+.feedback-cta .btn{padding:1rem 2.5rem}
+
+@media(max-width:768px){
+.hamburger{display:flex}
+.nav-menu{display:none;position:absolute;top:100%;left:0;right:0;background:var(--primary-color);flex-direction:column;padding:1rem;gap:.5rem}
+.nav-menu.active{display:flex}
+.hero h1{font-size:2rem}
+.hero-buttons{flex-direction:column;align-items:center}
+.class-grid{grid-template-columns:1fr}
+.semester-list.grid-4{grid-template-columns:repeat(2,1fr)}
+.stats-container{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body data-page="home">
+
+<nav class="navbar">
+  <div class="nav-container">
+    <div class="logo"><i class="fas fa-atom"></i><span>Physics Learning Space</span></div>
+    <ul class="nav-menu" id="nav-menu">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="#classes">Classes</a></li>
+      <li><a href="homework.html">Homework</a></li>
+      <li><a href="attendance.html">Attendance</a></li>
+      <li><a href="feedback.html">Feedback</a></li>
+      <li><a href="admin.html" class="admin-link"><i class="fas fa-lock"></i> Admin</a></li>
+    </ul>
+    <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-content">
+    <h1>Master Physics with Us</h1>
+    <p>Comprehensive learning resources for Class 11, 12, and BSc students</p>
+    <div class="hero-buttons">
+      <a href="#classes" class="btn btn-primary">Browse Classes</a>
+      <a href="#how-it-works" class="btn btn-secondary">How It Works</a>
+    </div>
+  </div>
+</section>
+
+<section id="classes" class="classes-section">
+  <h2>Choose Your Class</h2>
+  <div class="class-grid">
+    <div class="class-card">
+      <div class="class-header"><i class="fas fa-flask"></i><h3>Class 11</h3></div>
+      <div class="semester-list">
+        <a href="semester.html?class=11&sem=1" class="semester-btn">Semester 1</a>
+        <a href="semester.html?class=11&sem=2" class="semester-btn">Semester 2</a>
+      </div>
+    </div>
+    <div class="class-card">
+      <div class="class-header"><i class="fas fa-microscope"></i><h3>Class 12</h3></div>
+      <div class="semester-list">
+        <a href="semester.html?class=12&sem=3" class="semester-btn">Semester 3</a>
+        <a href="semester.html?class=12&sem=4" class="semester-btn">Semester 4</a>
+      </div>
+    </div>
+    <div class="class-card large">
+      <div class="class-header"><i class="fas fa-university"></i><h3>BSc Physics</h3></div>
+      <div class="semester-list grid-4">
+        <a href="semester.html?class=BSc&sem=1" class="semester-btn">Sem 1</a>
+        <a href="semester.html?class=BSc&sem=2" class="semester-btn">Sem 2</a>
+        <a href="semester.html?class=BSc&sem=3" class="semester-btn">Sem 3</a>
+        <a href="semester.html?class=BSc&sem=4" class="semester-btn">Sem 4</a>
+        <a href="semester.html?class=BSc&sem=5" class="semester-btn">Sem 5</a>
+        <a href="semester.html?class=BSc&sem=6" class="semester-btn">Sem 6</a>
+        <a href="semester.html?class=BSc&sem=7" class="semester-btn">Sem 7</a>
+        <a href="semester.html?class=BSc&sem=8" class="semester-btn">Sem 8</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how-it-works" class="how-it-works">
+  <h2>How It Works</h2>
+  <div class="steps-grid">
+    <div class="step-card"><div class="step-number">1</div><i class="fas fa-user-graduate"></i><h3>Select Class</h3><p>Choose your class and semester</p></div>
+    <div class="step-card"><div class="step-number">2</div><i class="fas fa-tasks"></i><h3>Access Materials</h3><p>View assignments and materials</p></div>
+    <div class="step-card"><div class="step-number">3</div><i class="fas fa-upload"></i><h3>Submit Work</h3><p>Upload assignments via Drive</p></div>
+    <div class="step-card"><div class="step-number">4</div><i class="fas fa-chart-line"></i><h3>Track Progress</h3><p>Check attendance and grades</p></div>
+  </div>
+</section>
+
+<section class="stats-section">
+  <div class="stats-container">
+    <div class="stat-item"><div class="stat-number" id="totalStudents">150+</div><div class="stat-label">Active Students</div></div>
+    <div class="stat-item"><div class="stat-number" id="totalAssignments">45+</div><div class="stat-label">Assignments</div></div>
+    <div class="stat-item"><div class="stat-number" id="totalClasses">200+</div><div class="stat-label">Classes Conducted</div></div>
+    <div class="stat-item"><div class="stat-number" id="avgAttendance">92%</div><div class="stat-label">Avg Attendance</div></div>
+  </div>
+</section>
+
+<!-- Feedback Call-To-Action -->
+<section class="feedback-cta">
+  <h2>Have Something to Say? 💬</h2>
+  <p>Share your anonymous feedback — it takes under a minute and helps us make the portal better for everyone.</p>
+  <a href="feedback.html" class="btn btn-primary">
+    <i class="fas fa-comment-dots"></i> Give Anonymous Feedback
+  </a>
+</section>
+
+<footer class="footer">
+  <div class="footer-content">
+    <div class="footer-section"><h4>Physics Learning Space</h4><p>Making physics accessible to everyone</p></div>
+    <div class="footer-section"><h4>Quick Links</h4><ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="#classes">Classes</a></li>
+      <li><a href="homework.html">Homework</a></li>
+      <li><a href="attendance.html">Attendance</a></li>
+      <li><a href="feedback.html">Feedback</a></li>
+    </ul></div>
+    <div class="footer-section"><h4>Contact</h4>
+      <p><i class="fas fa-envelope"></i> teacher@physicsSpace.com</p>
+      <p><i class="fas fa-phone"></i> +91 9876543210</p>
+    </div>
+  </div>
+  <div class="footer-bottom"><p>&copy; 2024 Physics Learning Space. All rights reserved.</p></div>
+</footer>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="shared.js"></script>
+</body>
+</html>

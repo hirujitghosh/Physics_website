@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel - Physics Learning Portal</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+/* ==== BASE ==== */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --primary-color:#2c3e50;--secondary-color:#3498db;--accent-color:#e74c3c;
+  --success-color:#27ae60;--warning-color:#f39c12;--danger-color:#e74c3c;
+  --light-bg:#f8f9fa;--dark-text:#333;--light-text:#fff;--border-color:#e0e0e0;
+  --border-radius:8px;--box-shadow:0 2px 10px rgba(0,0,0,.1);
+  --transition:all .3s ease;
+}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--light-bg);color:var(--dark-text);line-height:1.6}
+.container{max-width:1200px;margin:0 auto;padding:0 20px}
+
+/* ==== ADMIN NAV ==== */
+.admin-nav{background:var(--primary-color);color:#fff;padding:1rem 0;position:sticky;top:0;z-index:1000;box-shadow:0 2px 5px rgba(0,0,0,.1)}
+.admin-nav .nav-container{max-width:1400px;margin:0 auto;padding:0 2rem;display:flex;justify-content:space-between;align-items:center}
+.admin-nav .logo{display:flex;align-items:center;gap:.5rem;font-size:1.2rem;font-weight:bold}
+.admin-nav .logo i{color:var(--secondary-color);font-size:1.5rem}
+.admin-user{display:flex;align-items:center;gap:.5rem;font-size:.95rem}
+.admin-user i{color:var(--secondary-color)}
+.btn-logout{background:var(--accent-color);color:#fff;border:none;padding:.5rem 1rem;border-radius:var(--border-radius);cursor:pointer;display:flex;align-items:center;gap:.5rem;font-size:.9rem;transition:var(--transition)}
+.btn-logout:hover{background:#c0392b}
+
+/* ==== LOGIN ==== */
+.login-section{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--primary-color),var(--secondary-color));padding:2rem}
+.login-container{width:100%;max-width:400px}
+.login-card{background:#fff;border-radius:var(--border-radius);padding:2rem;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.login-header{text-align:center;margin-bottom:2rem}
+.login-header i{font-size:3rem;color:var(--secondary-color);margin-bottom:1rem}
+.login-header h2{color:var(--primary-color);margin-bottom:.5rem;font-size:1.8rem}
+.login-header p{color:#666;font-size:.9rem}
+.login-form .form-group{margin-bottom:1.5rem}
+.login-form label{display:block;margin-bottom:.5rem;color:#555;font-weight:500;font-size:.95rem}
+.login-form input{width:100%;padding:.75rem;border:2px solid var(--border-color);border-radius:var(--border-radius);font-size:1rem;transition:var(--transition)}
+.login-form input:focus{outline:none;border-color:var(--secondary-color);box-shadow:0 0 0 3px rgba(52,152,219,.1)}
+.error-message{background:#f8d7da;color:#721c24;padding:.75rem;border-radius:var(--border-radius);border:1px solid #f5c6cb;margin-top:1rem;text-align:center;font-size:.9rem}
+
+/* ==== DASHBOARD ==== */
+.admin-dashboard{min-height:100vh;background:var(--light-bg)}
+.dashboard-header{background:#fff;padding:2rem 0;border-bottom:1px solid var(--border-color)}
+.dashboard-header h1{display:flex;align-items:center;gap:.5rem;color:var(--primary-color);font-size:2rem;margin-bottom:.5rem}
+.date-display{color:#666;font-size:1rem}
+.dashboard-stats{padding:2rem 0}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem}
+.stat-card{background:#fff;border-radius:var(--border-radius);padding:1.5rem;display:flex;align-items:center;gap:1rem;box-shadow:var(--box-shadow);transition:var(--transition)}
+.stat-card:hover{transform:translateY(-5px);box-shadow:0 5px 20px rgba(0,0,0,.15)}
+.stat-card i{font-size:2.5rem;color:var(--secondary-color)}
+.stat-info{display:flex;flex-direction:column}
+.stat-value{font-size:2rem;font-weight:bold;color:var(--primary-color);line-height:1.2}
+.stat-label{color:#666;font-size:.9rem}
+
+/* ==== TABS ==== */
+.admin-tabs{background:#fff;padding:2rem 0;min-height:500px}
+.tabs-header{display:flex;gap:.5rem;border-bottom:2px solid var(--border-color);margin-bottom:2rem;overflow-x:auto;padding-bottom:.5rem}
+.tab-btn{padding:.75rem 1.5rem;background:none;border:none;border-radius:var(--border-radius) var(--border-radius) 0 0;cursor:pointer;font-size:1rem;color:#666;display:flex;align-items:center;gap:.5rem;white-space:nowrap;transition:var(--transition);position:relative}
+.tab-btn:hover{background:var(--light-bg);color:var(--primary-color)}
+.tab-btn.active{background:var(--secondary-color);color:#fff}
+.tab-pane{display:none}
+.tab-pane.active{display:block;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.tab-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;flex-wrap:wrap;gap:1rem}
+.tab-header h2{color:var(--primary-color);font-size:1.5rem}
+
+/* ==== BUTTONS ==== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.75rem 1.5rem;border:none;border-radius:var(--border-radius);font-size:1rem;font-weight:500;cursor:pointer;transition:var(--transition);text-decoration:none}
+.btn-primary{background:var(--secondary-color);color:#fff}
+.btn-primary:hover:not(:disabled){background:#2980b9;transform:translateY(-2px)}
+.btn-secondary{background:var(--light-bg);color:var(--dark-text);border:1px solid var(--border-color)}
+.btn-secondary:hover:not(:disabled){background:#e9ecef;transform:translateY(-2px)}
+.btn-danger{background:var(--danger-color);color:#fff}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-sm{padding:.4rem .8rem;font-size:.85rem}
+.btn-block{width:100%}
+
+/* ==== FILTER BAR ==== */
+.filter-bar{display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap}
+.filter-bar input,.filter-bar select{padding:.75rem;border:1px solid var(--border-color);border-radius:var(--border-radius);font-size:.95rem;min-width:200px;flex:1}
+.filter-bar input:focus,.filter-bar select:focus{outline:none;border-color:var(--secondary-color);box-shadow:0 0 0 3px rgba(52,152,219,.1)}
+
+/* ==== TABLES ==== */
+.table-responsive{overflow-x:auto}
+.data-table{width:100%;border-collapse:collapse;background:#fff;border-radius:var(--border-radius);overflow:hidden;box-shadow:var(--box-shadow)}
+.data-table thead{background:var(--primary-color);color:#fff}
+.data-table th{padding:1rem;text-align:left;font-weight:600;font-size:.95rem}
+.data-table td{padding:1rem;border-bottom:1px solid var(--border-color);vertical-align:middle}
+.data-table tbody tr:hover{background:var(--light-bg)}
+.action-btns{display:flex;gap:.5rem;justify-content:center}
+.btn-icon{background:none;border:none;padding:.5rem;cursor:pointer;border-radius:4px;transition:var(--transition);font-size:1.1rem}
+.btn-icon.edit{color:var(--secondary-color)}
+.btn-icon.delete{color:var(--danger-color)}
+.btn-icon:hover{background:rgba(0,0,0,.05);transform:scale(1.1)}
+
+/* ==== STATUS BADGES ==== */
+.status-badge{display:inline-block;padding:.25rem .75rem;border-radius:20px;font-size:.85rem;font-weight:500;text-transform:capitalize}
+.status-badge.present,.status-badge.graded{background:#d4edda;color:#155724}
+.status-badge.absent{background:#f8d7da;color:#721c24}
+.status-badge.late,.status-badge.submitted{background:#fff3cd;color:#856404}
+
+/* ==== ATTENDANCE CONTROLS ==== */
+.attendance-controls{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+.attendance-controls select,.attendance-controls input{padding:.75rem;border:1px solid var(--border-color);border-radius:var(--border-radius);min-width:150px;font-size:.95rem}
+.attendance-table-container{margin-top:2rem}
+.table-actions{display:flex;gap:1rem;justify-content:flex-end;margin-top:1rem}
+.attendance-status{padding:.5rem;border:1px solid var(--border-color);border-radius:4px;min-width:100px}
+
+/* ==== ASSIGNMENTS ==== */
+.assignments-list{display:grid;gap:1.5rem}
+.assignment-card{background:#fff;border-radius:var(--border-radius);padding:1.5rem;box-shadow:var(--box-shadow)}
+.assignment-card.admin{border-left:4px solid var(--secondary-color)}
+.assignment-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:1rem}
+.assignment-header h3{color:var(--primary-color);margin:0;font-size:1.2rem}
+.class-badge{background:var(--light-bg);color:var(--secondary-color);padding:.25rem .75rem;border-radius:20px;font-size:.85rem;font-weight:600;border:1px solid var(--secondary-color)}
+.assignment-meta{display:flex;gap:1.5rem;margin:1rem 0;color:#666;font-size:.9rem;flex-wrap:wrap}
+.assignment-meta i{color:var(--secondary-color);width:16px}
+.assignment-actions{display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem}
+
+/* ==== SUBMISSIONS ==== */
+.submissions-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:1.5rem}
+.submission-card{background:#fff;border-radius:var(--border-radius);padding:1.5rem;box-shadow:var(--box-shadow);display:flex;flex-direction:column}
+.submission-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.submission-header h3{color:var(--primary-color);margin:0;font-size:1.1rem}
+.submission-details p{margin:.5rem 0;color:#666;font-size:.9rem}
+.submission-details i{width:20px;color:var(--secondary-color)}
+.submission-link{display:inline-flex;align-items:center;gap:.5rem;color:var(--secondary-color);text-decoration:none;font-size:.9rem;margin:.5rem 0;padding:.5rem;background:var(--light-bg);border-radius:4px}
+.submission-actions{display:flex;gap:.5rem;margin-top:1rem}
+
+/* ==== REPORTS ==== */
+.reports-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin-top:2rem}
+.report-card{background:#fff;border-radius:var(--border-radius);padding:2rem;text-align:center;box-shadow:var(--box-shadow)}
+.report-card i{font-size:3rem;color:var(--secondary-color);margin-bottom:1rem}
+.report-card h3{color:var(--primary-color);margin-bottom:.5rem;font-size:1.2rem}
+.report-card p{color:#666;margin-bottom:1.5rem;font-size:.9rem}
+
+/* ==== FEEDBACK VIEWER (NEW) ==== */
+.feedback-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem}
+.fb-stat-card{background:#fff;border-radius:var(--border-radius);padding:1.2rem;display:flex;align-items:center;gap:1rem;box-shadow:var(--box-shadow)}
+.fb-stat-card i{font-size:2rem}
+.fb-stat-value{display:block;font-size:1.6rem;font-weight:bold;color:var(--primary-color);line-height:1.1}
+.fb-stat-label{display:block;font-size:.8rem;color:#666}
+.feedback-list{display:grid;gap:1rem}
+.feedback-item{background:#fff;border-radius:var(--border-radius);padding:1.25rem;box-shadow:var(--box-shadow);border-left:4px solid var(--secondary-color);transition:var(--transition)}
+.feedback-item:hover{transform:translateY(-2px);box-shadow:0 5px 15px rgba(0,0,0,.1)}
+.feedback-item.rating-low{border-left-color:#e74c3c}
+.feedback-item.rating-mid{border-left-color:#f39c12}
+.feedback-item.rating-high{border-left-color:#27ae60}
+.fb-item-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem}
+.fb-item-date{font-size:.85rem;color:#888}
+.fb-item-stars{font-size:1.1rem;color:#f1c40f}
+.fb-item-stars .far{color:#ddd}
+.fb-chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.75rem}
+.fb-chip{background:#e8f4fd;color:#1976d2;padding:.25rem .6rem;border-radius:20px;font-size:.75rem;font-weight:600;white-space:nowrap}
+.fb-chip.good{background:#d4edda;color:#155724}
+.fb-chip.warn{background:#fff3cd;color:#856404}
+.fb-chip.bad{background:#f8d7da;color:#721c24}
+.fb-text-block{margin-top:.75rem}
+.fb-text-block strong{display:block;color:var(--primary-color);font-size:.85rem;margin-bottom:.25rem}
+.fb-text-block p{color:#444;font-size:.9rem;background:#f8f9fa;padding:.6rem .8rem;border-radius:6px;margin:0;line-height:1.5}
+
+/* ==== MODALS ==== */
+.modal{display:none;position:fixed;z-index:2000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.5);overflow-y:auto}
+.modal-content{background:#fff;margin:2rem auto;padding:2rem;border-radius:var(--border-radius);max-width:500px;position:relative;animation:slideDown .3s}
+.modal-content.large-modal{max-width:700px}
+@keyframes slideDown{from{transform:translateY(-50px);opacity:0}to{transform:translateY(0);opacity:1}}
+.close-modal{position:absolute;right:1.5rem;top:1rem;font-size:1.5rem;cursor:pointer;color:#999;transition:var(--transition)}
+.close-modal:hover{color:var(--danger-color)}
+.modal h2{color:var(--primary-color);margin-bottom:1.5rem;padding-right:2rem}
+
+/* ==== FORMS ==== */
+.form-group{margin-bottom:1.2rem}
+.form-group label{display:block;margin-bottom:.5rem;color:#555;font-weight:500;font-size:.95rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:.75rem;border:1px solid var(--border-color);border-radius:var(--border-radius);font-size:.95rem;font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--secondary-color);box-shadow:0 0 0 3px rgba(52,152,219,.1)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+.form-actions{display:flex;gap:1rem;justify-content:flex-end;margin-top:2rem}
+
+/* ==== UTILITIES ==== */
+.loading-spinner{text-align:center;padding:3rem;color:#666}
+.loading-spinner i{font-size:3rem;color:var(--secondary-color);margin-bottom:1rem}
+.no-data{text-align:center;padding:3rem;color:#999}
+.error{text-align:center;padding:2rem;color:var(--danger-color);background:#f8d7da;border-radius:var(--border-radius)}
+.text-center{text-align:center}
+#notificationContainer{position:fixed;top:20px;right:20px;z-index:9999}
+.notification{background:#fff;color:#333;padding:1rem 1.5rem;margin-bottom:.5rem;border-radius:var(--border-radius);box-shadow:0 3px 10px rgba(0,0,0,.2);display:flex;align-items:center;gap:.75rem;min-width:300px}
+.notification.success{background:#d4edda;color:#155724;border-left:4px solid #28a745}
+.notification.error{background:#f8d7da;color:#721c24;border-left:4px solid #dc3545}
+.notification.info{background:#cce5ff;color:#004085;border-left:4px solid #007bff}
+@keyframes slideOutRight{to{transform:translateX(100%);opacity:0}}
+
+/* ==== RESPONSIVE ==== */
+@media(max-width:768px){
+  .admin-nav .nav-container{flex-direction:column;gap:1rem;padding:1rem}
+  .tabs-header{flex-wrap:nowrap;overflow-x:auto}
+  .tab-btn{padding:.5rem 1rem;font-size:.9rem}
+  .stats-grid{grid-template-columns:1fr}
+  .attendance-controls{flex-direction:column;align-items:stretch}
+  .attendance-controls select,.attendance-controls input,.attendance-controls button{width:100%}
+  .filter-bar{flex-direction:column}
+  .form-row{grid-template-columns:1fr}
+  .submissions-grid{grid-template-columns:1fr}
+  .feedback-summary{grid-template-columns:1fr}
+  .fb-item-header{flex-direction:column;align-items:flex-start}
+}
+</style>
+</head>
+<body data-page="admin">
+
+<!-- ============ ADMIN NAV ============ -->
+<nav class="admin-nav">
+  <div class="nav-container">
+    <div class="logo"><i class="fas fa-atom"></i><span>Physics Learning Portal - Admin</span></div>
+    <div class="admin-user" id="adminUser"></div>
+  </div>
+</nav>
+
+<!-- ============ LOGIN SECTION ============ -->
+<section class="login-section" id="loginSection">
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <i class="fas fa-lock"></i>
+        <h2>Admin Login</h2>
+        <p>Enter your credentials to access the admin panel</p>
+      </div>
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" required placeholder="admin@physicsportal.com">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" required placeholder="••••••••">
+        </div>
+        <div class="form-group">
+          <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-sign-in-alt"></i> Login</button>
+        </div>
+        <div id="loginError" class="error-message" style="display:none;">Invalid email or password</div>
+      </form>
+      <div style="text-align:center;margin-top:20px;padding-top:20px;border-top:1px solid #eee;">
+        <p style="color:#666;margin-bottom:10px;">Don't have an admin account?</p>
+        <a href="create-admin.html" style="color:#1976d2;text-decoration:none;">
+          <i class="fas fa-user-plus"></i> Create Admin Account
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ADMIN DASHBOARD ============ -->
+<section class="admin-dashboard" id="adminDashboard" style="display:none;">
+
+  <!-- Dashboard Header -->
+  <div class="dashboard-header">
+    <div class="container">
+      <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+      <div class="date-display" id="currentDate"></div>
+    </div>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="dashboard-stats">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <i class="fas fa-users"></i>
+          <div class="stat-info">
+            <span class="stat-value" id="totalStudents">0</span>
+            <span class="stat-label">Total Students</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fas fa-book"></i>
+          <div class="stat-info">
+            <span class="stat-value" id="totalAssignments">0</span>
+            <span class="stat-label">Assignments</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fas fa-clock"></i>
+          <div class="stat-info">
+            <span class="stat-value" id="pendingSubmissions">0</span>
+            <span class="stat-label">Pending Review</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fas fa-calendar-check"></i>
+          <div class="stat-info">
+            <span class="stat-value" id="todayClass">0</span>
+            <span class="stat-label">Today's Class</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="admin-tabs">
+    <div class="container">
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab="students">
+          <i class="fas fa-user-graduate"></i> Students
+        </button>
+        <button class="tab-btn" data-tab="attendance">
+          <i class="fas fa-calendar-check"></i> Attendance
+        </button>
+        <button class="tab-btn" data-tab="assignments">
+          <i class="fas fa-tasks"></i> Assignments
+        </button>
+        <button class="tab-btn" data-tab="submissions">
+          <i class="fas fa-upload"></i> Submissions
+        </button>
+        <button class="tab-btn" data-tab="feedback">
+          <i class="fas fa-comment-dots"></i> Feedback
+        </button>
+        <button class="tab-btn" data-tab="reports">
+          <i class="fas fa-chart-bar"></i> Reports
+        </button>
+      </div>
+
+      <!-- ============ STUDENTS TAB ============ -->
+      <div class="tab-pane active" id="studentsTab">
+        <div class="tab-header">
+          <h2>Student Management</h2>
+          <button class="btn btn-primary" id="addStudentBtn"><i class="fas fa-plus"></i> Add Student</button>
+        </div>
+        <div class="filter-bar">
+          <input type="text" id="studentSearch" placeholder="Search students...">
+          <select id="filterClass">
+            <option value="">All Classes</option>
+            <option value="11">Class 11</option>
+            <option value="12">Class 12</option>
+            <option value="BSc">BSc</option>
+          </select>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th><th>Class</th><th>Semester</th>
+                <th>Email</th><th>Phone</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="studentsList"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============ ATTENDANCE TAB ============ -->
+      <div class="tab-pane" id="attendanceTab">
+        <div class="tab-header">
+          <h2>Mark Attendance</h2>
+          <div class="attendance-controls">
+            <select id="attendanceClass">
+              <option value="">Select Class</option>
+              <option value="11">Class 11</option>
+              <option value="12">Class 12</option>
+              <option value="BSc">BSc</option>
+            </select>
+            <select id="attendanceSemester"><option value="">Select Semester</option></select>
+            <input type="date" id="attendanceDate" class="date-input">
+            <button class="btn btn-primary" id="loadStudents"><i class="fas fa-sync"></i> Load Students</button>
+          </div>
+        </div>
+        <div class="attendance-table-container" id="attendanceTableContainer" style="display:none;">
+          <table class="data-table">
+            <thead><tr><th>Student Name</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="attendanceList"></tbody>
+          </table>
+          <div class="table-actions">
+            <button class="btn btn-primary" id="saveAttendance"><i class="fas fa-save"></i> Save Attendance</button>
+            <button class="btn btn-secondary" id="markAllPresent">Mark All Present</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ ASSIGNMENTS TAB ============ -->
+      <div class="tab-pane" id="assignmentsTab">
+        <div class="tab-header">
+          <h2>Assignment Management</h2>
+          <button class="btn btn-primary" id="createAssignmentBtn"><i class="fas fa-plus"></i> Create Assignment</button>
+        </div>
+        <div class="assignments-list" id="assignmentsList"></div>
+      </div>
+
+      <!-- ============ SUBMISSIONS TAB ============ -->
+      <div class="tab-pane" id="submissionsTab">
+        <div class="tab-header">
+          <h2>Review Submissions</h2>
+          <select id="filterAssignment"><option value="">All Assignments</option></select>
+        </div>
+        <div class="submissions-grid" id="submissionsGrid"></div>
+      </div>
+
+      <!-- ============ FEEDBACK TAB (NEW) ============ -->
+      <div class="tab-pane" id="feedbackTab">
+        <div class="tab-header">
+          <h2>Anonymous Student Feedback</h2>
+          <button class="btn btn-secondary" id="exportFeedbackBtn">
+            <i class="fas fa-download"></i> Export CSV
+          </button>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="feedback-summary" id="feedbackSummary">
+          <div class="fb-stat-card">
+            <i class="fas fa-star" style="color:#f1c40f"></i>
+            <div>
+              <span class="fb-stat-value" id="fbAvgRating">—</span>
+              <span class="fb-stat-label">Avg Star Rating</span>
+            </div>
+          </div>
+          <div class="fb-stat-card">
+            <i class="fas fa-comments" style="color:#3498db"></i>
+            <div>
+              <span class="fb-stat-value" id="fbTotalCount">0</span>
+              <span class="fb-stat-label">Total Responses</span>
+            </div>
+          </div>
+          <div class="fb-stat-card">
+            <i class="fas fa-thumbs-up" style="color:#27ae60"></i>
+            <div>
+              <span class="fb-stat-value" id="fbRecommendPct">—</span>
+              <span class="fb-stat-label">Would Recommend</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-bar">
+          <input type="text" id="feedbackSearch" placeholder="Search feedback text...">
+          <select id="feedbackRatingFilter">
+            <option value="">All Ratings</option>
+            <option value="5">⭐ 5 Stars</option>
+            <option value="4">⭐ 4 Stars</option>
+            <option value="3">⭐ 3 Stars</option>
+            <option value="2">⭐ 2 Stars</option>
+            <option value="1">⭐ 1 Star</option>
+          </select>
+          <select id="feedbackSort">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="highest">Highest Rating</option>
+            <option value="lowest">Lowest Rating</option>
+          </select>
+        </div>
+
+        <!-- Feedback list -->
+        <div class="feedback-list" id="feedbackList">
+          <p class="no-data">Click "Feedback" tab to load responses</p>
+        </div>
+      </div>
+
+      <!-- ============ REPORTS TAB ============ -->
+      <div class="tab-pane" id="reportsTab">
+        <h2>Generate Reports</h2>
+        <div class="reports-grid">
+          <div class="report-card">
+            <i class="fas fa-file-pdf"></i>
+            <h3>Attendance Report</h3>
+            <p>Download monthly attendance report</p>
+            <button class="btn btn-secondary" onclick="generateReport('attendance')">Generate</button>
+          </div>
+          <div class="report-card">
+            <i class="fas fa-file-excel"></i>
+            <h3>Marks Sheet</h3>
+            <p>Export assignment marks</p>
+            <button class="btn btn-secondary" onclick="generateReport('marks')">Generate</button>
+          </div>
+          <div class="report-card">
+            <i class="fas fa-chart-pie"></i>
+            <h3>Class Performance</h3>
+            <p>Overall class analytics</p>
+            <button class="btn btn-secondary" onclick="generateReport('performance')">Generate</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ ADD/EDIT STUDENT MODAL ============ -->
+<div id="studentModal" class="modal">
+  <div class="modal-content">
+    <span class="close-modal">&times;</span>
+    <h2 id="modalTitle">Add Student</h2>
+    <form id="studentForm">
+      <input type="hidden" id="studentId">
+      <div class="form-group">
+        <label for="studentName">Full Name *</label>
+        <input type="text" id="studentName" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="studentClass">Class *</label>
+          <select id="studentClass" required>
+            <option value="11">Class 11</option>
+            <option value="12">Class 12</option>
+            <option value="BSc">BSc</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="studentSemester">Semester *</label>
+          <select id="studentSemester" required></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="studentEmail">Email</label>
+        <input type="email" id="studentEmail">
+      </div>
+      <div class="form-group">
+        <label for="studentPhone">Phone</label>
+        <input type="tel" id="studentPhone">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save Student</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ CREATE ASSIGNMENT MODAL ============ -->
+<div id="assignmentModal" class="modal">
+  <div class="modal-content large-modal">
+    <span class="close-modal">&times;</span>
+    <h2>Create New Assignment</h2>
+    <form id="assignmentForm">
+      <div class="form-group">
+        <label for="assignmentTitle">Title *</label>
+        <input type="text" id="assignmentTitle" required>
+      </div>
+      <div class="form-group">
+        <label for="assignmentDesc">Description *</label>
+        <textarea id="assignmentDesc" rows="4" required></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="assignmentClass">Class *</label>
+          <select id="assignmentClass" required>
+            <option value="11">Class 11</option>
+            <option value="12">Class 12</option>
+            <option value="BSc">BSc</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="assignmentSemester">Semester *</label>
+          <select id="assignmentSemester" required></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="assignmentDeadline">Deadline *</label>
+        <input type="date" id="assignmentDeadline" required>
+      </div>
+      <div class="form-group">
+        <label for="assignmentDriveLink">Google Drive Link *</label>
+        <input type="url" id="assignmentDriveLink" required placeholder="https://drive.google.com/...">
+      </div>
+      <div class="form-group">
+        <label for="totalMarks">Total Marks</label>
+        <input type="number" id="totalMarks" min="0" step="1" value="20">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Create Assignment</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ GRADE SUBMISSION MODAL ============ -->
+<div id="gradeModal" class="modal">
+  <div class="modal-content">
+    <span class="close-modal">&times;</span>
+    <h2>Grade Submission</h2>
+    <div id="submissionInfo" style="margin-bottom:20px;padding:15px;background:#f5f5f5;border-radius:4px;"></div>
+    <form id="gradeForm">
+      <input type="hidden" id="gradeSubmissionId">
+      <div class="form-group">
+        <label for="obtainedMarks">Marks Obtained</label>
+        <input type="number" id="obtainedMarks" min="0" step="0.5" required>
+      </div>
+      <div class="form-group">
+        <label for="gradeFeedback">Feedback</label>
+        <textarea id="gradeFeedback" rows="4" placeholder="Enter feedback for student..."></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Submit Grade</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Notification Container -->
+<div id="notificationContainer"></div>
+
+<!-- ============ SCRIPTS ============ -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="shared.js"></script>
+</body>
+</html>
